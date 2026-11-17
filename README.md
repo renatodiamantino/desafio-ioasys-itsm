@@ -19,7 +19,26 @@ A plataforma centraliza todas as solicitações e falhas de TI em um único luga
 
 ---
 
-## 2. Stack Tecnológica & Justificativas (`documentação.md`)
+## 2. Prints da Aplicação em Funcionamento
+
+### Service Operations Workspace (`/workspace`)
+![Service Operations Workspace](docs/screenshots/workspace.png)
+
+### Portal de Autoatendimento (`/portal`)
+![Portal de Autoatendimento](docs/screenshots/portal.png)
+
+### Central Control (`/control`) — Status & Gantt (Jira)
+![Central Control Status e Gantt](docs/screenshots/control-status.png)
+
+### Central Control (`/control`) — DER PostgreSQL (Visual Paradigm)
+![DER PostgreSQL](docs/screenshots/control-banco.png)
+
+### Central Control (`/control`) — Mapa de Governança (n8n)
+![Mapa de Governança](docs/screenshots/control-mapping.png)
+
+---
+
+## 3. Stack Tecnológica & Justificativas (`documentação.md`)
 
 | Camada | Tecnologias | Por que foi escolhida |
 |---|---|---|
@@ -31,7 +50,7 @@ A plataforma centraliza todas as solicitações e falhas de TI em um único luga
 
 ---
 
-## 3. Estrutura do Repositório
+## 4. Estrutura do Repositório
 
 ```text
 servicenow/
@@ -57,7 +76,7 @@ servicenow/
 
 ---
 
-## 4. Planejamento Waterfall & Escopo (`Plan/`)
+## 5. Planejamento Waterfall & Escopo (`Plan/`)
 
 O produto completo foi especificado em **27 épicos (`E01`–`E27`, ~165 histórias)** em [Plan/plano_itsm.md](Plan/plano_itsm.md), divididos em:
 - **MVP (14 épicos / 71 histórias — 18 semanas, Fases F0 a F4):**
@@ -69,7 +88,7 @@ Todos os critérios testáveis das 71 histórias do MVP estão documentados em [
 
 ---
 
-## 5. Painéis Visuais & Central Control (`Control/` e `/control`)
+## 6. Painéis Visuais & Central Control (`Control/` e `/control`)
 
 Os arquivos em `Control/` podem ser abertos diretamente no navegador ou via **`http://localhost:3000/control`** com a aplicação rodando:
 
@@ -83,7 +102,7 @@ Os arquivos em `Control/` podem ser abertos diretamente no navegador ou via **`h
 
 ---
 
-## 6. Governança Contínua & QA Gate (`Soul/` e `.agents/rules/`)
+## 7. Governança Contínua & QA Gate (`Soul/` e `.agents/rules/`)
 
 Para evitar perda de contexto entre sessões ou trocas de modelo de IA:
 - **[.agents/rules/itsm-workflow.md](.agents/rules/itsm-workflow.md)** é carregada automaticamente em todo turno (`trigger: always_on`) e aponta para **[Soul/AGENTS.md](Soul/AGENTS.md)**.
@@ -92,7 +111,7 @@ Para evitar perda de contexto entre sessões ou trocas de modelo de IA:
 
 ---
 
-## 7. O que já foi Implementado & Validado (`documentação.md`)
+## 8. O que já foi Implementado & Validado (`documentação.md`)
 
 ### Backend (`apps/api` — 26/26 testes unitários passando)
 - **Organização (`US-001`):** `GET /api/v1/organization`, `POST /api/v1/organization/setup`, `PATCH /api/v1/organization`.
@@ -109,7 +128,7 @@ Para evitar perda de contexto entre sessões ou trocas de modelo de IA:
 
 ---
 
-## 8. Como Rodar Localmente
+## 9. Como Rodar Localmente
 
 ```powershell
 # 1. Instalar dependências
@@ -135,7 +154,7 @@ pnpm dev
 
 ---
 
-## 9. Testes & Qualidade
+## 10. Testes & Qualidade
 
 ```powershell
 pnpm build                      # Build completo (@itsm/shared, @itsm/api, @itsm/web)
