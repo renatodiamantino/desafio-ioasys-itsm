@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Desafio ioasys — Plataforma ITSM | Central Control</title>
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --border: #cbd5e1;
+      --top: #293e40;
+      --accent: #10b981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    header {
+      height: 48px;
+      background: var(--top);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      gap: 12px;
+      border-bottom: 1px solid #1f2933;
+      flex-shrink: 0;
+    }
+    .brand { font-weight: 800; font-size: 1rem; letter-spacing: -0.02em; }
+    .brand span { color: var(--accent); }
+    .sub { font-size: 0.75rem; color: #cbd5e1; margin-left: 8px; }
+    nav { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tab {
+      background: rgba(255, 255, 255, 0.1);
+      color: #e2e8f0;
+      border: 0;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .tab:hover { background: rgba(255, 255, 255, 0.2); color: #fff; }
+    .tab.active { background: var(--accent); color: #020617; }
+    .actions { display: flex; gap: 8px; align-items: center; }
+    .link-btn {
+      color: #fff;
+      text-decoration: none;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.1);
+      padding: 5px 10px;
+      border-radius: 6px;
+    }
+    .link-btn:hover { background: rgba(255, 255, 255, 0.2); }
+    iframe { flex: 1; width: 100%; border: 0; background: #0b1120; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <span class="brand">service<span>itsm</span></span>
+      <span class="sub">· Desafio ioasys — Central Control</span>
+    </div>
+    <nav id="tabs">
+      <button type="button" class="tab active" data-src="Control/status.html">Status & Gantt (Jira)</button>
+      <button type="button" class="tab" data-src="Control/banco.html">Banco de Dados (DER)</button>
+      <button type="button" class="tab" data-src="Control/mapping.html">Mapa de Governança</button>
+    </nav>
+    <div class="actions">
+      <a id="open-raw" class="link-btn" href="Control/status.html" target="_blank" rel="noreferrer">Nova aba ↗</a>
+      <a class="link-btn" href="https://github.com/renatodiamantino/desafio-ioasys-itsm" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+  </header>
+
+  <iframe id="viewer" src="Control/status.html" title="Central Control"></iframe>
+
+  <script>
+    const viewer = document.getElementById('viewer');
+    const openRaw = document.getElementById('open-raw');
+    document.getElementById('tabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('.tab');
+      if (!btn) return;
+      document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
+      btn.classList.add('active');
+      const src = btn.dataset.src;
+      viewer.src = src;
+      openRaw.href = src;
+    });
+  </script>
+</body>
+</html>
