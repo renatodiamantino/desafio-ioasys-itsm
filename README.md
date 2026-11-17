@@ -4,7 +4,7 @@
 
 ---
 
-## 1. Storytelling: Como este Projeto Nasceu e Evoluiu
+## 1. Contexto & Evolução do Projeto
 
 Este projeto não começou direto no código. Ele foi conduzido em **metodologia Waterfall em dupla direta (Produto/Arquitetura Humana + Agente de IA)**, tratando a IA não como um gerador de trechos isolados, mas como um time multidisciplinar governado por regras, memória persistente e painéis de controle.
 
@@ -130,15 +130,24 @@ Durante a construção, enfrentamos problemas reais de ambiente, runtime e usabi
 
 ---
 
-## 7. Stack, Estrutura & Como Rodar Localmente
+## 7. Stack Tecnológica, Por que Essas Escolhas & Banco PostgreSQL
 
-### Stack Resumida
-- **Runtime & Monorepo:** Node.js `>= 22.0.0`, TypeScript `^5.7.3`, `pnpm` `11.1.2`, Zod `^3.24.2`
-- **Backend (`apps/api`):** NestJS `^11.0.0`, Prisma ORM `^6.3.0`, Swagger/OpenAPI, Argon2id, JWT, `otplib` `^13.6.0`
-- **Frontend (`apps/web`):** Next.js `^15.2.0` (App Router), React `^19.0.0`, Tailwind CSS `^4.0.0`
-- **Infraestrutura (`docker-compose.yml`):** PostgreSQL `16-alpine`, Redis `7-alpine`, MinIO
+### Stack & Por que Usamos Essas Tecnologias
 
-### Executando do Zero
+- **TypeScript ponta a ponta (Node.js `>= 22` + `pnpm` `11.1.2` + Zod `^3.24`):** Permite compartilhar tipos e schemas de validação (`@itsm/shared`) entre frontend e backend, reduzindo duplicação e erros de contrato.
+- **NestJS `^11` + Prisma ORM `^6.3`:** O NestJS oferece arquitetura modular (ideal para separar domínios ITSM como Organização, Auth/SSO, Usuários/SCIM, Auditoria e Incidentes), injeção de dependência, guards RBAC e Swagger/OpenAPI. O Prisma entrega consultas tipadas e controle seguro de migrações.
+- **Segurança nativa (Argon2id, JWT, `otplib` `^13.6`):** Argon2id garante hash resistente para senhas; JWT viabiliza sessões stateless (`accessToken`/`refreshToken`); `otplib` implementa MFA TOTP padrão de mercado.
+- **Next.js `^15.2` (App Router) + React `^19` + Tailwind CSS `^4`:** Unifica o Portal (`/portal`), o Workspace (`/workspace`) e a Central Control (`/control`) em uma aplicação moderna, responsiva e consistente em Light/Dark Mode.
+- **PostgreSQL `16`, Redis `7` e MinIO (`docker-compose.yml`):** PostgreSQL atende tanto o modelo relacional rígido quanto campos dinâmicos; Redis suporta cache/filas assíncronas (BullMQ); MinIO provê armazenamento S3 local para anexos.
+
+### Banco de Dados PostgreSQL & Dump SQL
+
+- **Por que PostgreSQL?** Suporta integridade relacional ACID para o núcleo unificado `tasks`, `JSONB` para os campos customizados do motor *no-code* (`tasks.custom_fields`) e extensão `pg_trgm` para busca tolerante a erros na Base de Conhecimento.
+- **Herança lógica `TASK`:** Todo registro de trabalho (`INCIDENT`, `REQUEST`, `REQUEST_ITEM`, `CATALOG_TASK`) nasce em `tasks` e estende em tabelas filhas (`incidents`, etc.), evitando duplicação de comentários (`task_comments`), anexos, SLAs e auditoria (`audit_logs`).
+- **Dump SQL completo da estrutura:** O DDL PostgreSQL gerado diretamente do schema atual está versionado em **[apps/api/prisma/dump_schema.sql](apps/api/prisma/dump_schema.sql)** (além das migrações incrementais em **[apps/api/prisma/migrations/](apps/api/prisma/migrations)** e dos dados iniciais em **[apps/api/prisma/seed.js](apps/api/prisma/seed.js)**).
+- **Visualização DER:** O diagrama interativo completo pode ser aberto em **[Control/banco.html](Control/banco.html)** ou em `http://localhost:3000/control`.
+
+## 8. Como Rodar Localmente
 
 ```powershell
 # 1. Instalar dependências
@@ -164,7 +173,7 @@ pnpm dev
 
 ---
 
-## 8. Testes & Qualidade
+## 9. Testes & Qualidade
 
 ```powershell
 pnpm build                      # Build completo (@itsm/shared, @itsm/api, @itsm/web)
@@ -174,7 +183,7 @@ pnpm --filter @itsm/web lint    # Type-check Next.js (tsc --noEmit) com 0 erros
 
 ---
 
-## 9. Documentação Viva do Projeto
+## 10. Documentação Viva do Projeto
 - [documentação.md](documentação.md) — Registro técnico de tudo que já foi construído e testado
 - [Plan/plano_itsm.md](Plan/plano_itsm.md) — Plano Mestre do produto (27 épicos, fases Waterfall)
 - [Plan/modelo_dados_e_apis.md](Plan/modelo_dados_e_apis.md) — Modelo de dados PostgreSQL e especificação de APIs
