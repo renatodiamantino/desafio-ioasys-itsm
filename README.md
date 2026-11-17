@@ -1,21 +1,21 @@
 # Desafio Técnico ioasys — Plataforma ITSM
 
-> Plataforma completa de **Gestão de Serviços de TI (ITSM)** dedicada (*single-tenant*), inspirada no **ServiceNow ITSM**, construída com **TypeScript ponta a ponta**, metodologia **Waterfall assistida por IA** e governança contínua via **Rules, Memória Persistente, QA Gate e Painéis Visuais Vivos**.
+> **Do benchmarking em vídeo do ServiceNow à engenharia guiada por IA:** a história, a orquestração (`Plan` + `Soul` + `Control`), os desafios reais de engenharia e a construção incremental de uma plataforma ITSM *single-tenant* em **TypeScript ponta a ponta**.
 
 ---
 
-## 1. Visão do Produto & Metas do Desafio
+## 1. Storytelling: Como este Projeto Nasceu e Evoluiu
 
-A plataforma centraliza todas as solicitações e falhas de TI em um único lugar, oferecendo:
-- **Portal de Autoatendimento (`/portal`)** para o usuário final abrir, acompanhar, comentar e reabrir chamados com deflexão por Base de Conhecimento;
-- **Service Operations Workspace (`/workspace`)** para agentes N1/N2/N3 e gestores, com indicadores *Donut*, *Ações Importantes*, filtros e painel Master-Detail;
-- **Motor No-Code** (planejado no MVP) e **IA para triagem/assistência** nas releases futuras.
+Este projeto não começou direto no código. Ele foi conduzido em **metodologia Waterfall em dupla direta (Produto/Arquitetura Humana + Agente de IA)**, tratando a IA não como um gerador de trechos isolados, mas como um time multidisciplinar governado por regras, memória persistente e painéis de controle.
 
-### Objetivos Mensuráveis (Produto Completo — `Plan/plano_itsm.md`)
-- Reduzir o tempo médio de resolução (**MTTR**) em **30%**;
-- Atingir **≥ 25% de deflexão** via Portal / Base de Conhecimento / Chatbot;
-- Alcançar **≥ 80% de acerto** na classificação automática;
-- Manter cumprimento de **SLA ≥ 95%**.
+1. **Descoberta & Benchmarking Real (`F0`):**
+   - Analisamos o **ServiceNow ITSM** na prática — inclusive inspecionando o vídeo oficial *ITSM Product Overview* segmento a segmento via depuração remota do Chrome para mapear o *Service Operations Workspace* (SOW), a linha do tempo unificada, a deflexão por Base de Conhecimento no Portal e os fluxos ITIL.
+2. **Alinhamento de Escopo & Arquitetura (`F1`):**
+   - Fechamos **5 decisões estruturais**: arquitetura **single-tenant**, **TypeScript ponta a ponta** (`@itsm/shared` + NestJS + Next.js + Prisma), escopo MVP dimensionado para **1 pessoa + IA em 18 semanas**, **IA generativa fora do MVP** (planejada para R3) e **Motor No-Code obrigatório já no MVP**.
+3. **Orquestração `Plan/` + `Soul/` + `Control/`:**
+   - Para evitar que o projeto perdesse contexto entre sessões ou trocas de modelo, criamos uma **tríade de governança** (detalhada na seção 3) que obriga o agente a ler o estado atual antes de agir, passar por um **QA Gate** antes de concluir e atualizar painéis visuais vivos a cada entrega.
+4. **Construção Incremental (`F2` — Em Andamento):**
+   - Já entregamos **100% do Épico E01** (Setup, Auth/Argon2/MFA, SSO OIDC/SAML, CSV/SCIM 2.0, RBAC, Auditoria Imutável, i18n `pt-BR`/`en`/`es`), o **núcleo de Incidentes (E02)**, o **Portal de Autoatendimento (E06)**, o **Design System inspirado no ServiceNow** e a **Central Control (`/control`)**.
 
 ---
 
@@ -38,126 +38,145 @@ A plataforma centraliza todas as solicitações e falhas de TI em um único luga
 
 ---
 
-## 3. Stack Tecnológica & Justificativas (`documentação.md`)
+## 3. A Orquestração: `Plan/` + `Soul/` + `Control/`
 
-| Camada | Tecnologias | Por que foi escolhida |
-|---|---|---|
-| **Monorepo & Linguagem** | Node.js `>= 22`, TypeScript `^5.7`, `pnpm` `11.1.2`, Zod `^3.24` | Tipagem e contratos de validação compartilhados (`@itsm/shared`) entre API e Web sem duplicação |
-| **Backend (`apps/api`)** | NestJS `^11`, Express, Prisma ORM `^6.3`, Swagger/OpenAPI | Arquitetura modular por domínio ITSM, injeção de dependência, guards RBAC e migrações tipadas |
-| **Segurança & Auth** | Argon2id (`argon2`), JWT (`@nestjs/jwt`), MFA TOTP (`otplib` `^13.6`) | Hash resistente, sessões stateless (`access`/`refresh`), bloqueio `429` e 2FA padrão de mercado |
-| **Frontend (`apps/web`)** | Next.js `^15.2` (App Router), React `^19`, Tailwind CSS `^4` | Base única para `/workspace`, `/portal`, `/control` e rotas administrativas com Light/Dark Mode |
-| **Infraestrutura** | Docker Compose, PostgreSQL `16-alpine`, Redis `7-alpine`, MinIO | Relacional + `JSONB` (no-code), suporte a filas/timers (BullMQ) e anexos S3-compatíveis |
-
----
-
-## 4. Estrutura do Repositório
+A maior diferenciação metodológica deste desafio está em como o repositório foi estruturado para **orquestrar humano + IA com rastreabilidade total**:
 
 ```text
-servicenow/
-├── packages/shared/       # Schemas Zod, matriz Impacto × Urgência, i18n (pt-BR/en/es)
-├── apps/api/              # API REST NestJS + Prisma Schema/Migrations + Seed + Testes
-├── apps/web/              # Frontend Next.js (Design System ServiceNow + Central Control)
-├── Plan/                  # Especificação Waterfall (F0/F1)
-│   ├── plano_itsm.md              # Visão, 11 personas, 27 épicos (~165 US), cronograma 18 sem
-│   ├── modelo_dados_e_apis.md     # Modelo unificado TASK, índices e contratos REST/WS
-│   └── criterios_aceite_mvp.md    # Critérios Dado/Quando/Então das 71 histórias do MVP
-├── Control/               # Painéis Visuais Vivos (também acessíveis em /control)
-│   ├── status.html                # Painel estilo Jira/Scrum + Gantt das 71 US + Pós-MVP
-│   ├── banco.html                 # DER PostgreSQL interativo estilo Visual Paradigm
-│   └── mapping.html               # Mapa de fluxo animado (Rules → IA → QA Gate → Docs)
-├── Soul/                  # Governança & Memória Contínua do Agente
-│   ├── AGENTS.md                  # Regras obrigatórias (herança TASK, BigInt, UI/UX, QA Gate)
-│   ├── skills.md                  # Persona Full-Stack + UI/UX Sênior + Definition of Done
-│   └── memory.md                  # Memória persistente (RAG) com decisões e armadilhas resolvidas
-├── .agents/rules/         # Rule always_on conectando o Antigravity ao Soul/AGENTS.md
-├── documentação.md        # Registro técnico vivo do que foi implementado e validado
-└── docker-compose.yml     # PostgreSQL 16, Redis 7 e MinIO
+Pedido do Usuário
+   │
+   ▼
+[.agents/rules/itsm-workflow.md]  ──(carregada automaticamente em todo turno)
+   │
+   ├──► Soul/AGENTS.md    → Regras técnicas inegociáveis (herança TASK, BigInt, UI/UX, PowerShell)
+   ├──► Soul/skills.md    → Persona (Arquiteto + Full-Stack + UI/UX Sênior + QA) & QA Gate
+   ├──► Soul/memory.md    → Memória persistente (RAG) com decisões, armadilhas e ponto de parada
+   └──► Plan/             → Contrato Waterfall (plano_itsm.md, modelo_dados_e_apis.md, criterios_aceite_mvp.md)
+   │
+   ▼
+Construção (@itsm/shared → @itsm/api → @itsm/web) ──► QA Gate (Build + Tests + Smoke + UI)
+   │
+   ▼
+Documentação Viva (DoD)
+   ├──► documentação.md       → Apenas o que foi implementado e testado
+   ├──► Control/status.html   → Painel Jira/Gantt atualizado por história
+   ├──► Control/banco.html    → DER Visual Paradigm atualizado a cada mudança no schema.prisma
+   └──► Control/mapping.html  → Mapa visual do próprio fluxo de governança
 ```
 
----
-
-## 5. Planejamento Waterfall & Escopo (`Plan/`)
-
-O produto completo foi especificado em **27 épicos (`E01`–`E27`, ~165 histórias)** em [Plan/plano_itsm.md](Plan/plano_itsm.md), divididos em:
-- **MVP (14 épicos / 71 histórias — 18 semanas, Fases F0 a F4):**
-  - `E01` Plataforma Base · `E02` Gestão de Incidentes · `E03` Workspace do Agente · `E04` SLA/OLA · `E05` Notificações/E-mail · `E06` Portal Autoatendimento · `E07` Catálogo/Requisições · `E08` Base de Conhecimento · `E12` CMDB Mínima · `E13` Workflow No-Code · `E14` Relatórios/Dashboards · `E24` CSAT · `E26` API/Webhooks · `E27` Admin/No-Code.
-- **Pós-MVP (13 épicos — Releases R2, R3 e R4):**
-  - `E09` Problemas · `E10` Mudanças · `E11` Releases · `E15` Performance Analytics · `E16` Incidentes Graves (MIM) · `E17` ML · `E18` IA Generativa · `E19` Agente Virtual · `E20` Walk-up · `E21` DevOps · `E22` Melhoria Contínua · `E23` Força de Trabalho · `E25` Mobile.
-
-Todos os critérios testáveis das 71 histórias do MVP estão documentados em [Plan/criterios_aceite_mvp.md](Plan/criterios_aceite_mvp.md) e o modelo de dados completo em [Plan/modelo_dados_e_apis.md](Plan/modelo_dados_e_apis.md).
+- **`Plan/` (O que construir e como validar):** Garante que nenhuma linha de código seja escrita sem história definida, modelo relacional planejado (`TASK`) e critérios Dado/Quando/Então.
+- **`Soul/` (Como pensar e não esquecer):** Resolve o maior problema de projetos longos com LLM — a amnésia entre sessões. `Soul/memory.md` funciona como memória de longo prazo e `.agents/rules/itsm-workflow.md` garante aplicação automática.
+- **`Control/` (Visibilidade em tempo real):** Transforma arquivos técnicos em painéis visuais acessíveis direto na rota **`/control`** da aplicação.
 
 ---
 
-## 6. Painéis Visuais & Central Control (`Control/` e `/control`)
+## 4. Desafios Reais Enfrentados & Soluções de Engenharia
 
-Os arquivos em `Control/` podem ser abertos diretamente no navegador ou via **`http://localhost:3000/control`** com a aplicação rodando:
+Durante a construção, enfrentamos problemas reais de ambiente, runtime e usabilidade que moldaram a arquitetura final:
 
-- **`Control/status.html` (Painel Jira & Gantt):**
-  - KPIs de progresso do MVP, Fases Waterfall (`F0`–`F4`), Gantt das 71 histórias MVP e tabela de histórias Pós-MVP (`R2`–`R4`).
-  - Modal interativo estilo **Jira/Scrum** ao clicar em qualquer Épico ou História (`US-xxx`), exibindo objetivo, filhos, critérios de aceite e evidências.
-- **`Control/banco.html` (DER PostgreSQL — Estilo Visual Paradigm):**
-  - Diagrama interativo das **13 tabelas** implementadas em `apps/api/prisma/schema.prisma`, com `PK`, `FK`, `UK`, tipos PostgreSQL, cardinalidades (`1:1`, `N:1`), arraste de entidades, zoom/pan e inspetor de vínculos.
-- **`Control/mapping.html` (Mapa de Governança — Fluxo Interativo):**
-  - Fluxo visual animado com bolinhas direcionais mostrando `INPUT` e `OUTPUT` entre `Pedido do Usuário`, `Rules Always-On`, `Agente IA`, `QA Gate`, loop de correção e atualização da documentação viva.
-
----
-
-## 7. Governança Contínua & QA Gate (`Soul/` e `.agents/rules/`)
-
-Para evitar perda de contexto entre sessões ou trocas de modelo de IA:
-- **[.agents/rules/itsm-workflow.md](.agents/rules/itsm-workflow.md)** é carregada automaticamente em todo turno (`trigger: always_on`) e aponta para **[Soul/AGENTS.md](Soul/AGENTS.md)**.
-- **[Soul/skills.md](Soul/skills.md)** define a persona multidisciplinar (*Arquiteto + Engenheiro Full-Stack + Designer UI/UX Sênior + QA*) e o **QA Gate obrigatório** (build, `tsc --noEmit`, testes unitários, validação de serialização `BigInt` e `403` RBAC, conferência de UI).
-- **[Soul/memory.md](Soul/memory.md)** guarda decisões fechadas, armadilhas resolvidas (como `otplib` v13 e `AuditLog.id` em `BigInt`) e o ponto exato de parada.
-
----
-
-## 8. O que já foi Implementado & Validado (`documentação.md`)
-
-### Backend (`apps/api` — 26/26 testes unitários passando)
-- **Organização (`US-001`):** `GET /api/v1/organization`, `POST /api/v1/organization/setup`, `PATCH /api/v1/organization`.
-- **Auth, MFA & RBAC (`US-002`, `US-005`):** `POST /api/v1/auth/login` (bloqueio 15min após 5 falhas → HTTP `429`), `POST /api/v1/auth/mfa/setup|verify`, `POST /api/v1/auth/refresh`, `GET /api/v1/auth/me`, `PUT /api/v1/auth/users/:id/roles`, `JwtAuthGuard` + `RolesGuard`.
-- **SSO Corporativo (`US-003`):** `GET /api/v1/auth/sso/config`, `GET|PUT /api/v1/auth/sso/admin-config`, `GET /api/v1/auth/sso/login`, `POST /api/v1/auth/sso/callback` (OIDC/SAML + *Just-In-Time provisioning*).
-- **Importação CSV & SCIM 2.0 (`US-004`):** `POST /api/v1/users/import/csv` (validação + `dryRun`) e `/api/v1/scim/v2/Users` (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`) com `ScimTokenGuard`.
-- **Auditoria Imutável (`US-006`):** `GET /api/v1/audit-logs` e `GET /api/v1/audit-logs/entity/:entityType/:entityId` (somente leitura, `BigInt` serializado para `string`).
-- **i18n (`US-008`):** `PATCH /api/v1/auth/me/locale` + dicionário completo `pt-BR` / `en` / `es`.
-- **Incidentes (`E02` núcleo + `US-082`):** `GET /api/v1/incidents`, `GET /api/v1/incidents/my`, `POST /api/v1/incidents`, `GET /api/v1/incidents/:id`, `PATCH /api/v1/incidents/:id`, `POST /api/v1/incidents/:id/comments`, `POST /api/v1/incidents/:id/resolve`, `POST /api/v1/incidents/:id/reopen`, `POST /api/v1/incidents/:id/link-children`.
-
-### Frontend (`apps/web` — Design System ServiceNow + Light/Dark Mode)
-- **Shell Corporativo (`AppShell`):** Barra global `#293e40`, menu lateral `#303a46` com **Filtrar menu**, abas funcionais **Apps / ★ Favoritos / ◷ Histórico** (`localStorage`), menu de perfil com idioma e Sair, e ícone Sol/Lua.
-- **Rotas:** `/setup`, `/login`, `/workspace` (*Ações Importantes*, 4 gráficos **Donut**, lista estilo ServiceNow e Master-Detail), `/workspace/audit`, `/workspace/users/import`, `/workspace/settings/sso`, `/portal` (Portal de Autoatendimento com deflexão e Donut) e `/control`.
+1. **PostgreSQL sem Docker Desktop (`Wsl/0x80070422` no Windows):**
+   - *Desafio:* O ambiente local não possuía Docker Desktop/WSL2 ativo e o instalador gráfico travava por UAC.
+   - *Solução:* Provisionamos binários portáteis oficiais do **PostgreSQL 16** em `.local/pgsql` (ignorado no `.gitignore`), inicializamos o cluster e aplicamos todas as migrations reais do Prisma (`20261116234607_init` e `20261117001505_add_incidents_e02`).
+2. **Erro `500 Internal Server Error` por `BigInt` em `audit_logs`:**
+   - *Desafio:* Ao abrir detalhes de um chamado no `/portal` autenticado como `admin`, a API quebrou com `Do not know how to serialize a BigInt` porque `audit_logs.id` é `BigInt` no PostgreSQL.
+   - *Solução:* Convertemos explicitamente `id.toString()` em `AuditService` e `IncidentsService.findOne`, criamos teste de regressão específico e instituímos o **QA Gate** em `Soul/AGENTS.md` para barrar conclusões baseadas apenas em mocks.
+3. **Isolamento estrito do `pnpm` v11 & Scripts Nativos:**
+   - *Desafio:* O `pnpm` v11 bloqueava scripts de build nativos (`argon2`, `@prisma/engines`) e impedia importações não declaradas diretamente no pacote (`zod` usado dentro de `apps/api`).
+   - *Solução:* Configuramos `pnpm.onlyBuiltDependencies` no `package.json` raiz e centralizamos contratos/validações em `@itsm/shared`.
+4. **Quebra de API na versão v13 do `otplib`:**
+   - *Desafio:* A versão `^13.6.0` instalada removeu o objeto legado `authenticator`.
+   - *Solução:* Refatoramos o módulo de MFA para usar `generateSecret`, `generateSync`, `verifySync` e `generateURI`, documentando o aprendizado em `Soul/memory.md`.
+5. **Reforma de UI/UX & Bug de i18n Misto (`pt-BR` com trechos em inglês):**
+   - *Desafio:* A primeira versão das telas estava crua, com botões amontoados no topo, seletor de idioma branco sobre fundo branco e strings fixas em inglês mesmo com `pt-BR` ativo.
+   - *Solução:* Construímos o `AppShell` inspirado no **ServiceNow Service Management** (barra `#293e40`, navegador lateral `#303a46` com *Filtrar menu*, *Apps / ★ Favoritos / ◷ Histórico*, `TopbarActions` sem engrenagem, `DonutChart`, `PriorityBadge`, `StateBadge`) e unificamos 100% das strings em `packages/shared/src/i18n.ts`.
 
 ---
 
-## 9. Como Rodar Localmente
+## 5. O que Cada Épico Entrega na Prática (`Plan/plano_itsm.md`)
+
+### Escopo MVP — 14 Épicos (71 Histórias · 18 Semanas)
+
+| Épico | O que entrega de valor real | Status Atual |
+|---|---|---|
+| **E01 — Plataforma Base** | Setup single-tenant, Login + Argon2 + bloqueio + MFA TOTP, SSO (OIDC/SAML + JIT), Importação CSV (`dryRun`) & SCIM 2.0, RBAC, Auditoria imutável e i18n (`pt-BR`/`en`/`es`) | **100% Concluído** |
+| **E02 — Gestão de Incidentes** | Abertura (`INC...`), matriz 3×3 Impacto×Urgência (`P1`–`P5`), ciclo de vida de estados, atribuição, notas internas vs. comentários públicos, resolução obrigatória, reabertura e Pai/Filho | **Núcleo Entregue** (faltam `US-024`, `027`, `032`, `033`) |
+| **E06 — Portal de Autoatendimento** | Portal com branding da empresa, busca, abertura com deflexão por artigos sugeridos, acompanhamento, comentários públicos e reabertura | **Entregue** (`US-080`, `081` parcial, `082`, `084`) |
+| **E03 — Workspace do Agente (SOW)** | Home com *Ações Importantes* + gráficos *Donut*, lista estilo ServiceNow, abas múltiplas de registros, painel lateral de contexto e busca global | **Iniciado** (`US-040` parcial) |
+| **E27 — Admin & No-Code** | CRUD de categorias/grupos/locais, campos customizados (`JSONB`) e políticas condicionais de UI sem código | Pendente |
+| **E04 — SLA / OLA & Calendários** | Definições de resposta/resolução, calendário comercial/feriados, cronômetro visual e alertas 50%/75%/100% via BullMQ | Pendente |
+| **E05 — Notificações & E-mail** | E-mails transacionais, abertura/resposta de chamados por e-mail (inbound) e sininho in-app via WebSocket | Pendente |
+| **E07 — Catálogo & Requisições** | Itens de catálogo, construtor de formulários condicionais, carrinho, hierarquia `REQ → RITM → SCTASK` e aprovações 1-clique | Pendente |
+| **E08 — Base de Conhecimento** | Editor rico, fluxo editorial, múltiplas bases, busca tolerante a erros (`pg_trgm`) e criação de artigo a partir de incidente | Pendente |
+| **E12 — CMDB Mínima** | Cadastro de Itens de Configuração (servidores, apps, notebooks, redes) por classe e importação CSV | Pendente |
+| **E13 — Workflow No-Code** | Editor visual básico de fluxos assíncronos e regras de negócio sem código | Pendente |
+| **E14 — Relatórios & Dashboards** | Dashboards prontos do Service Desk, construtor visual sem código e exportação CSV/Excel/PDF | Pendente |
+| **E24 — Pesquisas CSAT** | Pesquisa 1–5 estrelas ao fechar chamado e relatório por grupo/agente | Pendente |
+| **E26 — API & Webhooks** | API REST documentada (Swagger/OpenAPI), tokens por aplicação e webhooks assinados com retry | **Parcial** (`US-320` Swagger ativo) |
+
+### Escopo Pós-MVP — 13 Épicos (Releases R2, R3 e R4)
+- **R2 (ITIL Avançado & Analytics):** `E09` Gestão de Problemas & Erros Conhecidos · `E10` Gestão de Mudanças & CAB · `E11` Gestão de Releases · `E15` Performance Analytics (KPIs históricos).
+- **R3 (Escala, Automação & IA):** `E16` Incidentes Graves (MIM) · `E17` Classificação/Roteamento com ML · `E18` IA Generativa (resumos, rascunhos, RAG) · `E19` Agente Virtual & Chat · `E20` Walk-up (balcão presencial) · `E21` Integração DevOps (CI/CD) · `E25` App Mobile.
+- **R4 (Otimização Enterprise):** `E22` Melhoria Contínua (CIM) · `E23` Gestão de Força de Trabalho & Process Mining.
+
+---
+
+## 6. Próximos Passos (Roadmap Imediato)
+
+1. **Fechar 100% do Épico E02 (Incidentes):** Implementar atribuição automática (`US-024`), fechamento automático após N dias (`US-027`), escalonamento (`US-032`) e templates de incidente (`US-033`).
+2. **Completar E27 (Admin & Motor No-Code):** Telas administrativas de categorias/grupos/locais (`US-330`–`US-332`) e campos customizados + políticas condicionais em `JSONB` (`US-333`, `US-334`).
+3. **Evoluir E03 (Service Operations Workspace):** Abas múltiplas de registros abertos (`US-042`), painel lateral de contexto do solicitante (`US-043`) e linha do tempo unificada (`US-045`).
+4. **Ativar Workers Assíncronos (`E04` SLA + `E05` E-mail):** Conectar Redis + BullMQ para contagem de SLA em horário comercial e notificações em tempo real.
+5. **Implementar E08 (Base de Conhecimento com `pg_trgm`):** Substituir os guias iniciais do `/portal` por artigos reais persistidos no PostgreSQL com deflexão medida.
+
+---
+
+## 7. Stack, Estrutura & Como Rodar Localmente
+
+### Stack Resumida
+- **Runtime & Monorepo:** Node.js `>= 22.0.0`, TypeScript `^5.7.3`, `pnpm` `11.1.2`, Zod `^3.24.2`
+- **Backend (`apps/api`):** NestJS `^11.0.0`, Prisma ORM `^6.3.0`, Swagger/OpenAPI, Argon2id, JWT, `otplib` `^13.6.0`
+- **Frontend (`apps/web`):** Next.js `^15.2.0` (App Router), React `^19.0.0`, Tailwind CSS `^4.0.0`
+- **Infraestrutura (`docker-compose.yml`):** PostgreSQL `16-alpine`, Redis `7-alpine`, MinIO
+
+### Executando do Zero
 
 ```powershell
 # 1. Instalar dependências
 pnpm install
 
-# 2. Subir PostgreSQL 16, Redis 7 e MinIO
+# 2. Subir infraestrutura (PostgreSQL 16, Redis 7, MinIO)
 docker compose up -d
 
-# 3. Gerar Prisma Client, aplicar migrações e popular dados demo
+# 3. Gerar Prisma Client, aplicar migrações e popular dados de demonstração
 pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
 
-# 4. Iniciar API (3001) e Web (3000)
+# 4. Rodar API (3001) e Web (3000) em paralelo
 pnpm dev
 ```
 
 ### Acessos & Credenciais Demo (`pnpm db:seed`)
-- **Web App:** `http://localhost:3000`
-- **Central Control:** `http://localhost:3000/control`
+- **Web App (`/workspace` e `/portal`):** `http://localhost:3000`
+- **Central Control (Painéis HTML):** `http://localhost:3000/control`
 - **Swagger / OpenAPI:** `http://localhost:3001/api/docs`
 - **Usuários demo (senha `Itsm@2026`):** `ana.n1@itsm.local` (`agent`), `carlos.infra@itsm.local` (`agent`), `mariana.gestora@itsm.local` (`manager`), `joao.usuario@itsm.local` (`end_user`).
 
 ---
 
-## 10. Testes & Qualidade
+## 8. Testes & Qualidade
 
 ```powershell
 pnpm build                      # Build completo (@itsm/shared, @itsm/api, @itsm/web)
-pnpm --filter @itsm/api test    # 26/26 testes unitários em 6 suítes
-pnpm --filter @itsm/web lint    # Type-check Next.js (tsc --noEmit)
+pnpm --filter @itsm/api test    # 26/26 testes unitários passando em 6 suítes
+pnpm --filter @itsm/web lint    # Type-check Next.js (tsc --noEmit) com 0 erros
 ```
+
+---
+
+## 9. Documentação Viva do Projeto
+- [documentação.md](documentação.md) — Registro técnico de tudo que já foi construído e testado
+- [Plan/plano_itsm.md](Plan/plano_itsm.md) — Plano Mestre do produto (27 épicos, fases Waterfall)
+- [Plan/modelo_dados_e_apis.md](Plan/modelo_dados_e_apis.md) — Modelo de dados PostgreSQL e especificação de APIs
+- [Plan/criterios_aceite_mvp.md](Plan/criterios_aceite_mvp.md) — Critérios de aceite das 71 histórias do MVP
+- [Soul/AGENTS.md](Soul/AGENTS.md) · [Soul/skills.md](Soul/skills.md) · [Soul/memory.md](Soul/memory.md) — Regras, QA Gate e memória contínua
