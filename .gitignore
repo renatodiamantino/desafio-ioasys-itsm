@@ -1,0 +1,12 @@
+node_modules/
+.pnpm-store/
+dist/
+.next/
+.env
+.env.local
+**/.env
+**/.env.local
+*.log
+coverage/
+.local/
+Plan/itsm_overview.mp4

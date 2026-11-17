@@ -1,0 +1,311 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TaskType {
+  INCIDENT
+  REQUEST
+  REQUEST_ITEM
+  CATALOG_TASK
+}
+
+enum IncidentChannel {
+  PORTAL
+  EMAIL
+  PHONE
+  WALK_IN
+  API
+}
+
+model OrganizationSettings {
+  id               String   @id @default(uuid()) @db.Uuid
+  companyName      String   @map("company_name") @db.VarChar(150)
+  logoUrl          String?  @map("logo_url")
+  primaryColor     String   @default("#0F4C81") @map("primary_color") @db.VarChar(7)
+  supportEmail     String   @map("support_email") @db.VarChar(255)
+  defaultTimezone  String   @default("America/Sao_Paulo") @map("default_timezone") @db.VarChar(64)
+  defaultLocale    String   @default("pt-BR") @map("default_locale") @db.VarChar(10)
+  autoCloseDays    Int      @default(7) @map("auto_close_days")
+  reopenWindowDays Int      @default(7) @map("reopen_window_days")
+  ssoConfig        Json?    @map("sso_config")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("organization_settings")
+}
+
+model Location {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(150)
+  country   String?  @db.VarChar(80)
+  state     String?  @db.VarChar(80)
+  city      String?  @db.VarChar(80)
+  timezone  String   @default("America/Sao_Paulo") @db.VarChar(64)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users User[]
+  tasks Task[]
+
+  @@map("locations")
+}
+
+model Department {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(150)
+  code      String?  @db.VarChar(50)
+  managerId String?  @map("manager_id") @db.Uuid
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users User[]
+
+  @@map("departments")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique @db.VarChar(255)
+  name         String   @db.VarChar(150)
+  passwordHash String?  @map("password_hash")
+  mfaEnabled   Boolean  @default(false) @map("mfa_enabled")
+  mfaSecretEnc String?  @map("mfa_secret_enc")
+  locale       String   @default("pt-BR") @db.VarChar(10)
+  phone        String?  @db.VarChar(30)
+  jobTitle     String?  @map("job_title") @db.VarChar(100)
+  departmentId String?  @map("department_id") @db.Uuid
+  locationId   String?  @map("location_id") @db.Uuid
+  managerId    String?  @map("manager_id") @db.Uuid
+  externalId   String?  @map("external_id") @db.VarChar(255)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  department Department? @relation(fields: [departmentId], references: [id])
+  location   Location?   @relation(fields: [locationId], references: [id])
+  manager    User?       @relation("UserManager", fields: [managerId], references: [id])
+  reports    User[]      @relation("UserManager")
+
+  roles          UserRole[]
+  groups         GroupMember[]
+  managedGroups  Group[]       @relation("GroupManager")
+  requestedTasks Task[]        @relation("TaskRequester")
+  openedTasks    Task[]        @relation("TaskOpenedBy")
+  assignedTasks  Task[]        @relation("TaskAssignedTo")
+  taskComments   TaskComment[]
+  auditLogs      AuditLog[]
+
+  @@index([externalId])
+  @@map("users")
+}
+
+model Role {
+  id          String  @id @default(uuid()) @db.Uuid
+  code        String  @unique @db.VarChar(60)
+  name        String  @db.VarChar(100)
+  description String?
+  isSystem    Boolean @default(false) @map("is_system")
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id     String @id @default(uuid()) @db.Uuid
+  module String @db.VarChar(60)
+  action String @db.VarChar(60)
+
+  roles RolePermission[]
+
+  @@unique([module, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId String @map("user_id") @db.Uuid
+  roleId String @map("role_id") @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model Group {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique @db.VarChar(150)
+  description String?
+  email       String?  @db.VarChar(255)
+  managerId   String?  @map("manager_id") @db.Uuid
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  manager       User?         @relation("GroupManager", fields: [managerId], references: [id])
+  members       GroupMember[]
+  assignedTasks Task[]
+
+  @@map("groups")
+}
+
+model GroupMember {
+  groupId String @map("group_id") @db.Uuid
+  userId  String @map("user_id") @db.Uuid
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@map("group_members")
+}
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  entityType String   @map("entity_type") @db.VarChar(60)
+  entityId   String   @map("entity_id") @db.Uuid
+  action     String   @db.VarChar(30)
+  actorId    String?  @map("actor_id") @db.Uuid
+  fieldName  String?  @map("field_name") @db.VarChar(100)
+  oldValue   Json?    @map("old_value")
+  newValue   Json?    @map("new_value")
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+model Task {
+  id                     String    @id @default(uuid()) @db.Uuid
+  number                 String    @unique @db.VarChar(20)
+  taskType               TaskType  @map("task_type")
+  shortDescription       String    @map("short_description") @db.VarChar(255)
+  description            String?
+  state                  String    @db.VarChar(40)
+  impact                 Int       @default(3) @db.SmallInt
+  urgency                Int       @default(3) @db.SmallInt
+  priority               Int       @default(4) @db.SmallInt
+  priorityOverrideReason String?   @map("priority_override_reason")
+  requesterId            String    @map("requester_id") @db.Uuid
+  openedById             String    @map("opened_by_id") @db.Uuid
+  assignedGroupId        String?   @map("assigned_group_id") @db.Uuid
+  assignedToId           String?   @map("assigned_to_id") @db.Uuid
+  locationId             String?   @map("location_id") @db.Uuid
+  customFields           Json      @default("{}") @map("custom_fields")
+  openedAt               DateTime  @default(now()) @map("opened_at")
+  resolvedAt             DateTime? @map("resolved_at")
+  closedAt               DateTime? @map("closed_at")
+  dueAt                  DateTime? @map("due_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  requester     User      @relation("TaskRequester", fields: [requesterId], references: [id])
+  openedBy      User      @relation("TaskOpenedBy", fields: [openedById], references: [id])
+  assignedGroup Group?    @relation(fields: [assignedGroupId], references: [id])
+  assignedTo    User?     @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  location      Location? @relation(fields: [locationId], references: [id])
+
+  incident Incident?
+  comments TaskComment[]
+
+  @@index([state])
+  @@index([priority])
+  @@index([requesterId])
+  @@index([assignedGroupId])
+  @@index([assignedToId])
+  @@map("tasks")
+}
+
+model Incident {
+  taskId           String          @id @map("task_id") @db.Uuid
+  channel          IncidentChannel @default(PORTAL)
+  categoryId       String?         @map("category_id") @db.Uuid
+  subcategoryId    String?         @map("subcategory_id") @db.Uuid
+  holdReasonId     String?         @map("hold_reason_id") @db.Uuid
+  parentIncidentId String?         @map("parent_incident_id") @db.Uuid
+  resolutionCodeId String?         @map("resolution_code_id") @db.Uuid
+  resolutionNotes  String?         @map("resolution_notes")
+  reopenCount      Int             @default(0) @map("reopen_count") @db.SmallInt
+
+  task           Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  category       Category?       @relation("IncidentCategory", fields: [categoryId], references: [id])
+  subcategory    Category?       @relation("IncidentSubcategory", fields: [subcategoryId], references: [id])
+  holdReason     HoldReason?     @relation(fields: [holdReasonId], references: [id])
+  resolutionCode ResolutionCode? @relation(fields: [resolutionCodeId], references: [id])
+  parentIncident Incident?       @relation("IncidentHierarchy", fields: [parentIncidentId], references: [taskId])
+  childIncidents Incident[]      @relation("IncidentHierarchy")
+
+  @@map("incidents")
+}
+
+model TaskComment {
+  id         String   @id @default(uuid()) @db.Uuid
+  taskId     String   @map("task_id") @db.Uuid
+  authorId   String   @map("author_id") @db.Uuid
+  body       String
+  isInternal Boolean  @default(false) @map("is_internal")
+  source     String   @default("WEB") @db.VarChar(20)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id])
+
+  @@index([taskId, createdAt])
+  @@map("task_comments")
+}
+
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  parentId  String?  @map("parent_id") @db.Uuid
+  name      String   @db.VarChar(120)
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+
+  parent              Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children            Category[] @relation("CategoryTree")
+  incidentsPrimary    Incident[] @relation("IncidentCategory")
+  incidentsSub        Incident[] @relation("IncidentSubcategory")
+
+  @@map("categories")
+}
+
+model ResolutionCode {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String     @unique @db.VarChar(120)
+  isActive  Boolean    @default(true) @map("is_active")
+  incidents Incident[]
+
+  @@map("resolution_codes")
+}
+
+model HoldReason {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String     @unique @db.VarChar(120)
+  isActive  Boolean    @default(true) @map("is_active")
+  incidents Incident[]
+
+  @@map("hold_reasons")
+}

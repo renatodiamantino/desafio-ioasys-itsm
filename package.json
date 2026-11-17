@@ -1,0 +1,28 @@
+{
+  "name": "itsm-platform",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.1.2",
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "db:generate": "pnpm --filter @itsm/api db:generate",
+    "db:migrate": "pnpm --filter @itsm/api db:migrate",
+    "db:seed": "pnpm --filter @itsm/api db:seed",
+    "db:studio": "pnpm --filter @itsm/api db:studio"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "argon2",
+      "prisma"
+    ]
+  }
+}

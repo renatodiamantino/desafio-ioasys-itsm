@@ -1,0 +1,990 @@
+v
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DER PostgreSQL — Plataforma ITSM (Visual Paradigm Style)</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --grid: rgba(148, 163, 184, 0.08);
+      --surface: #111827;
+      --surface-2: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #38bdf8;
+      --pk: #f59e0b;
+      --fk: #38bdf8;
+      --uk: #a78bfa;
+      --done: #10b981;
+      --line: #64748b;
+      --line-active: #38bdf8;
+    }
+
+    [data-theme="light"] {
+      --bg: #f1f5f9;
+      --grid: rgba(15, 23, 42, 0.06);
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --border: #cbd5e1;
+      --text: #0f172a;
+      --muted: #475569;
+      --primary: #0284c7;
+      --pk: #d97706;
+      --fk: #0284c7;
+      --uk: #7c3aed;
+      --done: #059669;
+      --line: #94a3b8;
+      --line-active: #0284c7;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      z-index: 20;
+    }
+
+    .title-group h1 {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .title-group p {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn,
+    select,
+    input {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 11px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .btn {
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+
+    .btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .btn.active {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 310px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    @media (max-width: 960px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .inspector {
+        display: none;
+      }
+    }
+
+    .canvas-viewport {
+      position: relative;
+      overflow: hidden;
+      cursor: grab;
+      background-image:
+        linear-gradient(to right, var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    .canvas-viewport:active {
+      cursor: grabbing;
+    }
+
+    .canvas-stage {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 2400px;
+      height: 1500px;
+      transform-origin: 0 0;
+    }
+
+    svg.erd-lines {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .rel-path {
+      fill: none;
+      stroke: var(--line);
+      stroke-width: 1.75;
+      transition: stroke 0.15s ease, opacity 0.15s ease, stroke-width 0.15s ease;
+    }
+
+    .rel-path.active {
+      stroke: var(--line-active);
+      stroke-width: 2.8;
+    }
+
+    .rel-path.dimmed {
+      opacity: 0.16;
+    }
+
+    .rel-label {
+      font-size: 11px;
+      font-weight: 700;
+      fill: var(--muted);
+      paint-order: stroke;
+      stroke: var(--bg);
+      stroke-width: 4px;
+    }
+
+    .rel-label.active {
+      fill: var(--primary);
+    }
+
+    .rel-label.dimmed {
+      opacity: 0.16;
+    }
+
+    /* Entity Box (Visual Paradigm Style) */
+    .entity {
+      position: absolute;
+      width: 270px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.25);
+      z-index: 5;
+      user-select: none;
+      transition: border-color 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .entity.selected {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.22), 0 12px 28px rgba(0, 0, 0, 0.35);
+      z-index: 10;
+    }
+
+    .entity.connected {
+      border-color: var(--primary);
+      z-index: 8;
+    }
+
+    .entity.dimmed {
+      opacity: 0.28;
+    }
+
+    .entity-header {
+      padding: 8px 10px;
+      background: var(--surface-2);
+      border-bottom: 1.5px solid var(--border);
+      border-radius: 8px 8px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: move;
+      gap: 6px;
+    }
+
+    .entity-name {
+      font-size: 0.86rem;
+      font-weight: 700;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .domain-tag {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .dom-org {
+      background: rgba(16, 185, 129, 0.16);
+      color: var(--done);
+    }
+
+    .dom-rbac {
+      background: rgba(167, 139, 250, 0.18);
+      color: var(--uk);
+    }
+
+    .dom-task {
+      background: rgba(56, 189, 248, 0.18);
+      color: var(--primary);
+    }
+
+    .dom-audit {
+      background: rgba(245, 158, 11, 0.18);
+      color: var(--pk);
+    }
+
+    .entity-cols {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.74rem;
+    }
+
+    .entity-cols tr {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .entity-cols tr:last-child {
+      border-bottom: none;
+    }
+
+    .entity-cols td {
+      padding: 4px 8px;
+      vertical-align: middle;
+    }
+
+    .col-key {
+      width: 34px;
+      font-weight: 700;
+      font-size: 0.68rem;
+      text-align: center;
+    }
+
+    .k-pk {
+      color: var(--pk);
+    }
+
+    .k-fk {
+      color: var(--fk);
+    }
+
+    .k-uk {
+      color: var(--uk);
+    }
+
+    .col-name {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-weight: 500;
+    }
+
+    .col-type {
+      color: var(--muted);
+      text-align: right;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.7rem;
+    }
+
+    /* Inspector Sidebar */
+    .inspector {
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      z-index: 15;
+    }
+
+    .insp-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    .insp-sub {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .insp-section {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .insp-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .rel-card {
+      font-size: 0.78rem;
+      padding: 7px 9px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      cursor: pointer;
+    }
+
+    .rel-card:hover {
+      border-color: var(--primary);
+    }
+
+    .rel-card code {
+      color: var(--primary);
+      font-family: ui-monospace, monospace;
+    }
+
+    .legend-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .legend-badge {
+      font-weight: 700;
+    }
+  </style>
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="title-group">
+      <h1>DER PostgreSQL — Plataforma ITSM</h1>
+      <p>Última sincronização com <code>apps/api/prisma/schema.prisma</code>: <strong>2026-11-16</strong> · 13 tabelas
+        implementadas · Arraste tabelas, dê zoom ou clique para inspecionar vínculos</p>
+    </div>
+    <div class="toolbar">
+      <select id="filter-domain">
+        <option value="ALL">Todos os Domínios</option>
+        <option value="dom-task">Núcleo TASK & Incidentes</option>
+        <option value="dom-rbac">Identidade, RBAC & Grupos</option>
+        <option value="dom-org">Organização & Estrutura</option>
+        <option value="dom-audit">Auditoria Imutável</option>
+      </select>
+      <input type="text" id="search-table" placeholder="Buscar tabela ou coluna..." />
+      <button type="button" class="btn" id="zoom-out">−</button>
+      <button type="button" class="btn" id="zoom-reset">100%</button>
+      <button type="button" class="btn" id="zoom-in">+</button>
+      <button type="button" class="btn" id="reset-layout">Resetar Layout</button>
+      <button type="button" class="btn" id="theme-toggle">☀️ Light Mode</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <div class="canvas-viewport" id="viewport">
+      <div class="canvas-stage" id="stage">
+        <svg class="erd-lines" id="erd-svg">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6"
+              orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--line)" />
+            </marker>
+            <marker id="arrow-active" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
+              orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--line-active)" />
+            </marker>
+          </defs>
+        </svg>
+      </div>
+    </div>
+
+    <aside class="inspector" id="inspector">
+      <div>
+        <div class="insp-title" id="insp-title">Selecione uma Tabela</div>
+        <div class="insp-sub" id="insp-sub">Clique em qualquer entidade no diagrama para destacar suas Foreign Keys e
+          relacionamentos.</div>
+      </div>
+
+      <div class="insp-section">
+        <div class="insp-label">Legenda Visual Paradigm</div>
+        <div class="legend-row">
+          <span><span class="legend-badge k-pk">PK</span> Chave Primária</span>
+          <span><span class="legend-badge k-fk">FK</span> Chave Estrangeira</span>
+          <span><span class="legend-badge k-uk">UK</span> Único</span>
+          <span><strong>1:N / N:1</strong> Cardinalidade</span>
+        </div>
+      </div>
+
+      <div class="insp-section" id="insp-rels-box">
+        <div class="insp-label">Relacionamentos Ativos (<span id="rel-count">0</span>)</div>
+        <div id="insp-rels" style="display:grid;gap:6px;"></div>
+      </div>
+
+      <div class="insp-section">
+        <div class="insp-label">Modelo Mental (Herança TASK)</div>
+        <p style="font-size:0.78rem;color:var(--muted);line-height:1.5;">
+          Tudo que é trabalho (<code>INCIDENT</code>, <code>REQUEST</code>, <code>RITM</code>, <code>SCTASK</code>)
+          nasce em <code>tasks</code> e estende via <code>1:1</code> (ex.: <code>incidents.task_id → tasks.id</code>).
+          Auditoria e vínculos organizacionais apontam para <code>users</code>, <code>groups</code> e
+          <code>locations</code>.
+        </p>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const TABLES = [
+      {
+        id: 'organization_settings',
+        domain: 'dom-org',
+        domainLabel: 'Org',
+        x: 40, y: 40,
+        desc: 'Configurações globais da instância single-tenant (US-001).',
+        cols: [
+          { k: 'PK', n: 'id', t: 'uuid' },
+          { k: '', n: 'company_name', t: 'varchar(150)' },
+          { k: '', n: 'logo_url', t: 'text?' },
+          { k: '', n: 'primary_color', t: 'varchar(7)' },
+          { k: '', n: 'support_email', t: 'varchar(255)' },
+          { k: '', n: 'default_timezone', t: 'varchar(64)' },
+          { k: '', n: 'default_locale', t: 'varchar(10)' },
+          { k: '', n: 'auto_close_days', t: 'int' },
+          { k: '', n: 'reopen_window_days', t: 'int' },
+          { k: '', n: 'sso_config', t: 'jsonb?' }
+        ]
+      },
+      {
+        id: 'locations',
+        domain: 'dom-org',
+        domainLabel: 'Org',
+        x: 40, y: 360,
+        desc: 'Localidades e fusos horários da empresa (US-332).',
+        cols: [
+          { k: 'PK', n: 'id', t: 'uuid' },
+          { k: '', n: 'name', t: 'varchar(150)' },
+          { k: '', n: 'country', t: 'varchar(80)?' },
+          { k: '', n: 'state', t: 'varchar(80)?' },
+          { k: '', n: 'city', t: 'varchar(80)?' },
+          { k: '', n: 'timezone', t: 'varchar(64)' },
+          { k: '', n: 'is_active', t: 'boolean' }
+        ]
+      },
+      {
+        id: 'departments',
+        domain: 'dom-org',
+        domainLabel: 'Org',
+        x: 40, y: 630,
+        desc: 'Departamentos organizacionais (US-332).',
+        cols: [
+          { k: 'PK', n: 'id', t: 'uuid' },
+          { k: '', n: 'name', t: 'varchar(150)' },
+          { k: '', n: 'code', t: 'varchar(50)?' },
+          { k: '', n: 'manager_id', t: 'uuid?' },
+          { k: '', n: 'is_active', t: 'boolean' }
+        ]
+      },
+      {
+        id: 'users',
+        domain: 'dom-rbac',
+        domainLabel: 'RBAC',
+        x: 410, y: 240,
+        desc: 'Usuários, credenciais Argon2id, MFA TOTP e hierarquia de gestor (US-001/002).',
+        cols: [
+          { k: 'PK', n: 'id', t: 'uuid' },
+          { k: 'UK', n: 'email', t: 'varchar(255)' },
+          { k: '', n: 'name', t: 'varchar(150)' },
+          { k: '', n: 'password_hash', t: 'text?' },
+          { k: '', n: 'mfa_enabled', t: 'boolean' },
+          { k: '', n: 'locale', t: 'varchar(10)' },
+          { k: 'FK', n: 'department_id', t: 'uuid?' },
+          { k: 'FK', n: 'location_id', t: 'uuid?' },
+          { k: 'FK', n: 'manager_id', t: 'uuid?' },
+          { k: '', n: 'external_id', t: 'varchar(255)?' },
+          { k: '', n: 'is_active', t: 'boolean' }
+        ]
+      },
+      {
+        id: 'user_roles',
+        domain: 'dom-rbac',
+        domainLabel: 'RBAC',
+        x: 780, y: 40,
+        desc: 'Tabela associativa N:N entre usuários e papéis (US-005).',
+        cols: [
+          { k: 'PK/FK', n: 'user_id', t: 'uuid' },
+          { k: 'PK/FK', n: 'role_id', t: 'uuid' }
+        ]
+      },
+      {
+        id: 'roles',
+        domain: 'dom-rbac',
+        domainLabel: 'RBAC',
+        x: 1120, y: 40,
+        desc: 'Papéis de acesso: end_user, agent, manager, admin (US-005).',
+        cols: [
+          { k: 'PK', n: 'id', t: 'uuid' },
+          { k: 'UK', n: 'code', t: 'varchar(60)' },
+          { k: '', n: 'name', t: 'varchar(100)' },
+          { k: '', n: 'description', t: 'text?' },
+          { k: '', n: 'is_system', t: 'boolean' }
+        ]
+      },
+      {
+        id: 'role_permissions',
+        domain: 'dom-rbac',
+        domainLabel: 'RBAC',
+        x: 1460, y: 40,
+        desc: 'Associação N:N entre papéis e permissões granulares.',
+        cols: [
+          { k: 'PK/FK', n: 'role_id', t: 'uuid' },
+          { k: 'PK/FK', n: 'permission_id', t: 'uuid' }
+        ]
+      },
+      {
+        id: 'permissions',
+        domain: 'dom-rbac',
+        domainLabel: 'RBAC',
+        x: 1460, y: 200,
+        desc: 'Permissões por módulo e ação (UK: module + action).',
+        cols: [
+          { k: 'PK', n: 'id', t: 'uuid' },
+          { k: 'UK', n: 'module', t: 'varchar(60)' },
+          { k: 'UK', n: 'action', t: 'varchar(60)' }
+        ]
+      },
+      {
+        id: 'group_members',
+        domain: 'dom-rbac',
+        domainLabel: 'Grupos',
+        x: 780, y: 210,
+        desc: 'Membros pertencentes a cada grupo resolvedor (US-331).',
+        cols: [
+          { k: 'PK/FK', n: 'group_id', t: 'uuid' },
+          { k: 'PK/FK', n: 'user_id', t: 'uuid' }
+        ]
+      },
+      {
+        id: 'groups',
+        domain: 'dom-rbac',
+        domainLabel: 'Grupos',
+        x: 1120, y: 240,
+        desc: 'Grupos de atendimento e escalonamento (US-331).',
+        cols: [
+          { k: 'PK', n: 'id', t: 'uuid' },
+          { k: 'UK', n: 'name', t: 'varchar(150)' },
+          { k: '', n: 'description', t: 'text?' },
+          { k: '', n: 'email', t: 'varchar(255)?' },
+          { k: 'FK', n: 'manager_id', t: 'uuid?' },
+          { k: '', n: 'is_active', t: 'boolean' }
+        ]
+      },
+      {
+        id: 'audit_logs',
+        domain: 'dom-audit',
+        domainLabel: 'Auditoria',
+        x: 410, y: 650,
+        desc: 'Trilha imutável de auditoria (append-only, sem UPDATE/DELETE) (US-006).',
+        cols: [
+          { k: 'PK', n: 'id', t: 'bigint' },
+          { k: '', n: 'entity_type', t: 'varchar(60)' },
+          { k: '', n: 'entity_id', t: 'uuid' },
+          { k: '', n: 'action', t: 'varchar(30)' },
+          { k: 'FK', n: 'actor_id', t: 'uuid?' },
+          { k: '', n: 'field_name', t: 'varchar(100)?' },
+          { k: '', n: 'old_value', t: 'jsonb?' },
+          { k: '', n: 'new_value', t: 'jsonb?' },
+          { k: '', n: 'ip_address', t: 'varchar(45)?' },
+          { k: '', n: 'created_at', t: 'timestamptz' }
+        ]
+      },
+      {
+        id: 'tasks',
+        domain: 'dom-task',
+        domainLabel: 'TASK',
+        x: 860, y: 470,
+        desc: 'Tabela base unificada para INC, REQ, RITM e SCTASK (herança lógica TASK).',
+        cols: [
+          { k: 'PK', n: 'id', t: 'uuid' },
+          { k: 'UK', n: 'number', t: 'varchar(20)' },
+          { k: '', n: 'task_type', t: 'TaskType' },
+          { k: '', n: 'short_description', t: 'varchar(255)' },
+          { k: '', n: 'state', t: 'varchar(40)' },
+          { k: '', n: 'impact / urgency / priority', t: 'smallint' },
+          { k: 'FK', n: 'requester_id', t: 'uuid' },
+          { k: 'FK', n: 'opened_by_id', t: 'uuid' },
+          { k: 'FK', n: 'assigned_group_id', t: 'uuid?' },
+          { k: 'FK', n: 'assigned_to_id', t: 'uuid?' },
+          { k: 'FK', n: 'location_id', t: 'uuid?' },
+          { k: '', n: 'custom_fields', t: 'jsonb' }
+        ]
+      },
+      {
+        id: 'incidents',
+        domain: 'dom-task',
+        domainLabel: 'TASK',
+        x: 1260, y: 530,
+        desc: 'Extensão 1:1 de tasks para Incidentes, com canal e hierarquia Pai/Filho (E02).',
+        cols: [
+          { k: 'PK/FK', n: 'task_id', t: 'uuid' },
+          { k: '', n: 'channel', t: 'IncidentChannel' },
+          { k: 'FK', n: 'parent_incident_id', t: 'uuid?' },
+          { k: '', n: 'resolution_notes', t: 'text?' },
+          { k: '', n: 'reopen_count', t: 'smallint' }
+        ]
+      }
+    ];
+
+    const RELATIONS = [
+      { from: 'users', fromCol: 'department_id', to: 'departments', toCol: 'id', card: 'N:1', label: 'pertence a' },
+      { from: 'users', fromCol: 'location_id', to: 'locations', toCol: 'id', card: 'N:1', label: 'localizado em' },
+      { from: 'users', fromCol: 'manager_id', to: 'users', toCol: 'id', card: 'N:1', label: 'gestor direto' },
+      { from: 'user_roles', fromCol: 'user_id', to: 'users', toCol: 'id', card: 'N:1', label: 'usuário' },
+      { from: 'user_roles', fromCol: 'role_id', to: 'roles', toCol: 'id', card: 'N:1', label: 'papel' },
+      { from: 'role_permissions', fromCol: 'role_id', to: 'roles', toCol: 'id', card: 'N:1', label: 'papel' },
+      { from: 'role_permissions', fromCol: 'permission_id', to: 'permissions', toCol: 'id', card: 'N:1', label: 'permissão' },
+      { from: 'group_members', fromCol: 'group_id', to: 'groups', toCol: 'id', card: 'N:1', label: 'grupo' },
+      { from: 'group_members', fromCol: 'user_id', to: 'users', toCol: 'id', card: 'N:1', label: 'membro' },
+      { from: 'groups', fromCol: 'manager_id', to: 'users', toCol: 'id', card: 'N:1', label: 'gestor do grupo' },
+      { from: 'audit_logs', fromCol: 'actor_id', to: 'users', toCol: 'id', card: 'N:1', label: 'autor da ação' },
+      { from: 'tasks', fromCol: 'requester_id', to: 'users', toCol: 'id', card: 'N:1', label: 'solicitante' },
+      { from: 'tasks', fromCol: 'opened_by_id', to: 'users', toCol: 'id', card: 'N:1', label: 'aberto por' },
+      { from: 'tasks', fromCol: 'assigned_to_id', to: 'users', toCol: 'id', card: 'N:1', label: 'responsável' },
+      { from: 'tasks', fromCol: 'assigned_group_id', to: 'groups', toCol: 'id', card: 'N:1', label: 'grupo atribuído' },
+      { from: 'tasks', fromCol: 'location_id', to: 'locations', toCol: 'id', card: 'N:1', label: 'local do chamado' },
+      { from: 'incidents', fromCol: 'task_id', to: 'tasks', toCol: 'id', card: '1:1', label: 'estende TASK' },
+      { from: 'incidents', fromCol: 'parent_incident_id', to: 'incidents', toCol: 'task_id', card: 'N:1', label: 'incidente pai' }
+    ];
+
+    const stage = document.getElementById('stage');
+    const svg = document.getElementById('erd-svg');
+    const viewport = document.getElementById('viewport');
+    let selectedTable = null;
+    let zoom = 0.9;
+    let panX = 20;
+    let panY = 20;
+    const defaultPos = Object.fromEntries(TABLES.map(t => [t.id, { x: t.x, y: t.y }]));
+
+    function applyTransform() {
+      stage.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+      document.getElementById('zoom-reset').textContent = `${Math.round(zoom * 100)}%`;
+    }
+
+    function renderEntities() {
+      stage.querySelectorAll('.entity').forEach(el => el.remove());
+      TABLES.forEach(t => {
+        const el = document.createElement('div');
+        el.className = 'entity';
+        el.id = `ent-${t.id}`;
+        el.style.left = `${t.x}px`;
+        el.style.top = `${t.y}px`;
+        el.innerHTML = `
+          <div class="entity-header">
+            <span class="entity-name">${t.id}</span>
+            <span class="domain-tag ${t.domain}">${t.domainLabel}</span>
+          </div>
+          <table class="entity-cols">
+            <tbody>
+              ${t.cols.map(c => {
+          const kCls = c.k.includes('PK') ? 'k-pk' : c.k.includes('FK') ? 'k-fk' : c.k === 'UK' ? 'k-uk' : '';
+          return `<tr>
+                  <td class="col-key ${kCls}">${c.k}</td>
+                  <td class="col-name">${c.n}</td>
+                  <td class="col-type">${c.t}</td>
+                </tr>`;
+        }).join('')}
+            </tbody>
+          </table>
+        `;
+
+        // Drag entity
+        const header = el.querySelector('.entity-header');
+        let dragging = false, startX = 0, startY = 0, origX = 0, origY = 0, moved = false;
+        header.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+          dragging = true;
+          moved = false;
+          startX = e.clientX;
+          startY = e.clientY;
+          origX = t.x;
+          origY = t.y;
+        });
+        window.addEventListener('mousemove', (e) => {
+          if (!dragging) return;
+          const dx = (e.clientX - startX) / zoom;
+          const dy = (e.clientY - startY) / zoom;
+          if (Math.abs(dx) > 2 || Math.abs(dy) > 2) moved = true;
+          t.x = Math.max(0, origX + dx);
+          t.y = Math.max(0, origY + dy);
+          el.style.left = `${t.x}px`;
+          el.style.top = `${t.y}px`;
+          renderLines();
+        });
+        window.addEventListener('mouseup', () => { dragging = false; });
+
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (moved) return;
+          selectTable(t.id === selectedTable ? null : t.id);
+        });
+
+        stage.appendChild(el);
+      });
+    }
+
+    function getAnchor(tableId) {
+      const el = document.getElementById(`ent-${tableId}`);
+      if (!el) return { x: 0, y: 0, w: 270, h: 120 };
+      return {
+        x: parseFloat(el.style.left),
+        y: parseFloat(el.style.top),
+        w: el.offsetWidth,
+        h: el.offsetHeight
+      };
+    }
+
+    function renderLines() {
+      svg.querySelectorAll('.rel-group').forEach(g => g.remove());
+      const relatedSet = new Set();
+      if (selectedTable) {
+        relatedSet.add(selectedTable);
+        RELATIONS.forEach(r => {
+          if (r.from === selectedTable || r.to === selectedTable) {
+            relatedSet.add(r.from);
+            relatedSet.add(r.to);
+          }
+        });
+      }
+
+      RELATIONS.forEach((r, idx) => {
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.classList.add('rel-group');
+        const isActive = selectedTable && (r.from === selectedTable || r.to === selectedTable);
+        const isDimmed = selectedTable && !isActive;
+
+        const a = getAnchor(r.from);
+        const b = getAnchor(r.to);
+        let d = '', lx = 0, ly = 0;
+
+        if (r.from === r.to) {
+          // Self-referencing loop
+          const x1 = a.x + a.w;
+          const y1 = a.y + 36;
+          const x2 = a.x + a.w - 30;
+          const y2 = a.y;
+          d = `M ${x1} ${y1} C ${x1 + 55} ${y1}, ${x2 + 55} ${y2 - 55}, ${x2} ${y2}`;
+          lx = x1 + 38;
+          ly = y1 - 24;
+        } else {
+          const ax = a.x + a.w / 2, ay = a.y + a.h / 2;
+          const bx = b.x + b.w / 2, by = b.y + b.h / 2;
+          let x1, y1, x2, y2;
+          if (Math.abs(ax - bx) >= Math.abs(ay - by)) {
+            if (ax < bx) { x1 = a.x + a.w; x2 = b.x; } else { x1 = a.x; x2 = b.x + b.w; }
+            y1 = ay + ((idx % 3) - 1) * 10;
+            y2 = by + ((idx % 3) - 1) * 10;
+            const mx = (x1 + x2) / 2;
+            d = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+            lx = mx; ly = (y1 + y2) / 2 - 4;
+          } else {
+            if (ay < by) { y1 = a.y + a.h; y2 = b.y; } else { y1 = a.y; y2 = b.y + b.h; }
+            x1 = ax + ((idx % 3) - 1) * 12;
+            x2 = bx + ((idx % 3) - 1) * 12;
+            const my = (y1 + y2) / 2;
+            d = `M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}`;
+            lx = (x1 + x2) / 2; ly = my - 4;
+          }
+        }
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', d);
+        path.setAttribute('marker-end', isActive ? 'url(#arrow-active)' : 'url(#arrow)');
+        path.classList.add('rel-path');
+        if (isActive) path.classList.add('active');
+        if (isDimmed) path.classList.add('dimmed');
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', lx);
+        text.setAttribute('y', ly);
+        text.setAttribute('text-anchor', 'middle');
+        text.classList.add('rel-label');
+        if (isActive) text.classList.add('active');
+        if (isDimmed) text.classList.add('dimmed');
+        text.textContent = r.card;
+
+        g.appendChild(path);
+        g.appendChild(text);
+        svg.appendChild(g);
+      });
+    }
+
+    function selectTable(tableId) {
+      selectedTable = tableId;
+      const relatedSet = new Set();
+      if (selectedTable) {
+        relatedSet.add(selectedTable);
+        RELATIONS.forEach(r => {
+          if (r.from === selectedTable || r.to === selectedTable) {
+            relatedSet.add(r.from);
+            relatedSet.add(r.to);
+          }
+        });
+      }
+
+      TABLES.forEach(t => {
+        const el = document.getElementById(`ent-${t.id}`);
+        el.classList.remove('selected', 'connected', 'dimmed');
+        if (selectedTable) {
+          if (t.id === selectedTable) el.classList.add('selected');
+          else if (relatedSet.has(t.id)) el.classList.add('connected');
+          else el.classList.add('dimmed');
+        }
+      });
+
+      renderLines();
+      renderInspector();
+    }
+
+    function renderInspector() {
+      const titleEl = document.getElementById('insp-title');
+      const subEl = document.getElementById('insp-sub');
+      const relsEl = document.getElementById('insp-rels');
+      const countEl = document.getElementById('rel-count');
+
+      const rels = selectedTable
+        ? RELATIONS.filter(r => r.from === selectedTable || r.to === selectedTable)
+        : RELATIONS;
+
+      if (selectedTable) {
+        const t = TABLES.find(x => x.id === selectedTable);
+        titleEl.textContent = t.id;
+        subEl.textContent = t.desc;
+      } else {
+        titleEl.textContent = 'Visão Geral (13 Tabelas)';
+        subEl.textContent = 'Clique em qualquer entidade no diagrama para destacar suas Foreign Keys.';
+      }
+
+      countEl.textContent = rels.length;
+      relsEl.innerHTML = rels.map(r => `
+        <div class="rel-card" data-jump="${r.from === selectedTable ? r.to : r.from}">
+          <div><code>${r.from}.${r.fromCol}</code> → <code>${r.to}.${r.toCol}</code></div>
+          <div style="color:var(--muted);margin-top:3px;"><strong>${r.card}</strong> · ${r.label}</div>
+        </div>
+      `).join('');
+
+      relsEl.querySelectorAll('[data-jump]').forEach(card => {
+        card.addEventListener('click', () => selectTable(card.dataset.jump));
+      });
+    }
+
+    function applyFilters() {
+      const dom = document.getElementById('filter-domain').value;
+      const q = document.getElementById('search-table').value.trim().toLowerCase();
+      TABLES.forEach(t => {
+        const el = document.getElementById(`ent-${t.id}`);
+        const matchDom = dom === 'ALL' || t.domain === dom;
+        const matchQ = !q || t.id.toLowerCase().includes(q) || t.cols.some(c => c.n.toLowerCase().includes(q));
+        el.style.display = (matchDom && matchQ) ? 'block' : 'none';
+      });
+      renderLines();
+    }
+
+    // Panning canvas
+    let panning = false, panStartX = 0, panStartY = 0;
+    viewport.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.entity')) return;
+      panning = true;
+      panStartX = e.clientX - panX;
+      panStartY = e.clientY - panY;
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!panning) return;
+      panX = e.clientX - panStartX;
+      panY = e.clientY - panStartY;
+      applyTransform();
+    });
+    window.addEventListener('mouseup', () => { panning = false; });
+    viewport.addEventListener('click', (e) => {
+      if (!e.target.closest('.entity')) selectTable(null);
+    });
+    viewport.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.08 : -0.08;
+      zoom = Math.min(1.5, Math.max(0.45, zoom + delta));
+      applyTransform();
+    }, { passive: false });
+
+    document.getElementById('zoom-in').addEventListener('click', () => { zoom = Math.min(1.5, zoom + 0.1); applyTransform(); });
+    document.getElementById('zoom-out').addEventListener('click', () => { zoom = Math.max(0.45, zoom - 0.1); applyTransform(); });
+    document.getElementById('zoom-reset').addEventListener('click', () => { zoom = 0.9; panX = 20; panY = 20; applyTransform(); });
+    document.getElementById('reset-layout').addEventListener('click', () => {
+      TABLES.forEach(t => { t.x = defaultPos[t.id].x; t.y = defaultPos[t.id].y; });
+      renderEntities();
+      selectTable(null);
+    });
+    document.getElementById('filter-domain').addEventListener('change', applyFilters);
+    document.getElementById('search-table').addEventListener('input', applyFilters);
+
+    const themeBtn = document.getElementById('theme-toggle');
+    function applyTheme(theme) {
+      if (theme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        themeBtn.textContent = '🌙 Dark Mode';
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        themeBtn.textContent = '☀️ Light Mode';
+      }
+    }
+    applyTheme(localStorage.getItem('itsm-status-theme') || 'dark');
+    themeBtn.addEventListener('click', () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      localStorage.setItem('itsm-status-theme', next);
+      applyTheme(next);
+    });
+
+    renderEntities();
+    applyTransform();
+    requestAnimationFrame(() => {
+      renderLines();
+      renderInspector();
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mapping — Fluxo Interativo de Governança & IA (Estilo n8n)</title>
+  <style>
+    :root {
+      --bg: #111318;
+      --dot: rgba(255, 255, 255, 0.12);
+      --surface: #1d2029;
+      --surface-2: #262a36;
+      --border: #3a4052;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #38bdf8;
+      --in: #10b981;
+      --out: #f59e0b;
+      --rule: #a78bfa;
+      --danger: #ef4444;
+    }
+    [data-theme="light"] {
+      --bg: #f1f5f9;
+      --dot: rgba(15, 23, 42, 0.16);
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --border: #cbd5e1;
+      --text: #0f172a;
+      --muted: #475569;
+      --primary: #0284c7;
+      --in: #059669;
+      --out: #d97706;
+      --rule: #7c3aed;
+      --danger: #dc2626;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      z-index: 20;
+    }
+    .title-group h1 { font-size: 1.08rem; font-weight: 700; }
+    .title-group p { font-size: 0.78rem; color: var(--muted); }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .btn {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-run { background: rgba(16, 185, 129, 0.16); border-color: var(--in); color: var(--in); }
+
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      overflow: hidden;
+    }
+    @media (max-width: 960px) {
+      .workspace { grid-template-columns: 1fr; }
+      .inspector { display: none; }
+    }
+
+    .viewport {
+      position: relative;
+      overflow: hidden;
+      cursor: grab;
+      background-image: radial-gradient(var(--dot) 1.2px, transparent 1.2px);
+      background-size: 20px 20px;
+    }
+    .viewport:active { cursor: grabbing; }
+    .stage {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 2200px;
+      height: 1300px;
+      transform-origin: 0 0;
+    }
+    svg.wires {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .wire-path {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 2.2;
+      transition: stroke 0.2s ease, opacity 0.2s ease;
+    }
+    .wire-path.dashed { stroke-dasharray: 6 5; }
+    .wire-path.in-active { stroke: var(--in); stroke-width: 3; }
+    .wire-path.out-active { stroke: var(--out); stroke-width: 3; }
+    .wire-path.dimmed { opacity: 0.18; }
+    .wire-label {
+      font-size: 10px;
+      font-weight: 700;
+      fill: var(--muted);
+      paint-order: stroke;
+      stroke: var(--bg);
+      stroke-width: 4px;
+    }
+    .pulse-dot {
+      filter: drop-shadow(0 0 5px currentColor);
+      animation: blink 1.2s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%, 100% { r: 4; opacity: 1; }
+      50% { r: 6; opacity: 0.45; }
+    }
+
+    /* n8n-style Nodes */
+    .node {
+      position: absolute;
+      z-index: 5;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+    }
+    .node-box {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    }
+    .node.square .node-box { width: 84px; height: 84px; font-size: 1.7rem; }
+    .node.wide .node-box { width: 250px; height: 82px; padding: 0 16px; gap: 12px; justify-content: flex-start; }
+    .node.pill .node-box { width: 170px; height: 54px; border-radius: 999px; padding: 0 14px; gap: 8px; }
+    .node.circle .node-box { width: 72px; height: 72px; border-radius: 50%; font-size: 1.45rem; }
+
+    .node.selected .node-box {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.22), 0 12px 26px rgba(0, 0, 0, 0.35);
+    }
+    .node.is-input .node-box { border-color: var(--in); }
+    .node.is-output .node-box { border-color: var(--out); }
+    .node.dimmed { opacity: 0.28; }
+
+    .node-title {
+      margin-top: 7px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-align: center;
+      max-width: 155px;
+      line-height: 1.25;
+    }
+    .node-sub { font-size: 0.68rem; color: var(--muted); text-align: center; }
+
+    /* Ports */
+    .port {
+      position: absolute;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: var(--surface-2);
+      border: 2px solid var(--muted);
+    }
+    .port.in { left: -6px; top: 50%; transform: translateY(-50%); border-color: var(--in); }
+    .port.out { right: -6px; top: 50%; transform: translateY(-50%); border-color: var(--out); }
+    .port.sub { bottom: -6px; transform: translateX(-50%); border-color: var(--rule); }
+    .port.top { top: -6px; left: 50%; transform: translateX(-50%); border-color: var(--rule); }
+
+    /* Inspector */
+    .inspector {
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      z-index: 15;
+    }
+    .insp-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.82rem;
+    }
+    .insp-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .io-pill {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      margin-right: 6px;
+    }
+    .io-in { background: rgba(16, 185, 129, 0.16); color: var(--in); }
+    .io-out { background: rgba(245, 158, 11, 0.16); color: var(--out); }
+    .io-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 7px 9px;
+      cursor: pointer;
+    }
+    .io-item:hover { border-color: var(--primary); }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.76rem;
+      color: var(--primary);
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="title-group">
+      <h1>Mapa de Governança & Fluxo IA — Plataforma ITSM</h1>
+      <p>Última atualização: <strong id="last-updated">2026-11-16 23:20</strong> · Arraste os nós, dê zoom ou clique para ver <strong>INPUT</strong> e <strong>OUTPUT</strong> em tempo real</p>
+    </div>
+    <div class="toolbar">
+      <button type="button" class="btn btn-run" id="toggle-pulse">⚡ Fluxo Animado: ON</button>
+      <button type="button" class="btn" id="zoom-out">−</button>
+      <button type="button" class="btn" id="zoom-reset">100%</button>
+      <button type="button" class="btn" id="zoom-in">+</button>
+      <button type="button" class="btn" id="reset-layout">Resetar Layout</button>
+      <button type="button" class="btn" id="theme-toggle">☀️ Light Mode</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <div class="viewport" id="viewport">
+      <div class="stage" id="stage">
+        <svg class="wires" id="wires-svg"></svg>
+      </div>
+    </div>
+
+    <aside class="inspector">
+      <div>
+        <h2 style="font-size:1rem;font-weight:700;" id="insp-title">Fluxo Completo (Visão Geral)</h2>
+        <p style="font-size:0.78rem;color:var(--muted);margin-top:3px;" id="insp-desc">
+          Clique em qualquer nó do fluxo para inspecionar o que entra (INPUT) e o que sai (OUTPUT).
+        </p>
+      </div>
+
+      <div class="insp-card">
+        <div class="insp-label">Legenda de Fluxo</div>
+        <div style="display:grid;gap:6px;font-size:0.78rem;">
+          <div><span class="io-pill io-in">INPUT</span> Dados/regras que entram no nó</div>
+          <div><span class="io-pill io-out">OUTPUT</span> Artefatos/decisões gerados pelo nó</div>
+          <div><span style="color:var(--rule);font-weight:700;">● Tracejado</span> Contexto contínuo (Rules, Memória, Plano)</div>
+        </div>
+      </div>
+
+      <div class="insp-card" id="insp-io-card">
+        <div class="insp-label">Conexões do Nó</div>
+        <div id="insp-io-list" style="display:grid;gap:6px;"></div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const NODES = [
+      // Main horizontal pipeline
+      {
+        id: 'user_req', shape: 'square', icon: '💬', title: 'Pedido do Usuário', sub: 'Trigger / Prompt',
+        x: 60, y: 150, hasIn: false, hasOut: true,
+        file: 'Chat Antigravity',
+        desc: 'Início do ciclo: solicitação de nova história (US), ajuste de UI ou correção de bug.'
+      },
+      {
+        id: 'rules_gate', shape: 'square', icon: '🛡️', title: 'Rules Always-On', sub: 'Carregamento Automático',
+        x: 240, y: 150, hasIn: true, hasOut: true,
+        file: '.agents/rules/itsm-workflow.md',
+        desc: 'Injetada automaticamente pelo Antigravity em toda sessão e troca de modelo.'
+      },
+      {
+        id: 'agent_core', shape: 'wide', icon: '🤖', title: 'Agente IA (Arquiteto + Dev)', sub: 'Núcleo de Execução',
+        x: 460, y: 150, hasIn: true, hasOut: true,
+        subPorts: [0.2, 0.4, 0.6, 0.8],
+        file: 'Antigravity + Soul/skills.md',
+        desc: 'Recebe o pedido + regras + memória + plano Waterfall e implementa código em @itsm/shared, @itsm/api e @itsm/web.'
+      },
+      {
+        id: 'qa_gate', shape: 'square', icon: '🧪', title: 'QA Gate', sub: 'Build + Testes + Smoke',
+        x: 800, y: 150, hasIn: true, hasOut: true,
+        file: 'Soul/skills.md (QA Gate)',
+        desc: 'Valida tsc --noEmit, nest build, node --test, serialização BigInt, RBAC 403 e fluxo na UI.'
+      },
+      {
+        id: 'qa_branch', shape: 'square', icon: '🔀', title: 'QA Aprovado?', sub: 'True / False',
+        x: 980, y: 150, hasIn: true, hasOut: true,
+        file: 'Critério de Pronto',
+        desc: 'Decisão obrigatória: se falhar (ex.: 500 BigInt), retorna para correção antes de documentar.'
+      },
+      {
+        id: 'fix_loop', shape: 'square', icon: '🔧', title: 'Corrigir Bug', sub: 'Retorno ao Agente',
+        x: 980, y: 330, hasIn: true, hasOut: true,
+        file: 'apps/api / apps/web',
+        desc: 'Quando o QA encontra erro (build, teste ou HTTP 500), o agente corrige e re-testa.'
+      },
+
+      // Outputs (Documentação Viva)
+      {
+        id: 'out_docs', shape: 'wide', icon: '📘', title: 'documentação.md', sub: 'Output Técnico',
+        x: 1210, y: 50, hasIn: true, hasOut: false,
+        file: 'documentação.md',
+        desc: 'Registra exclusivamente o que foi implementado, compilado e testado.'
+      },
+      {
+        id: 'out_status', shape: 'wide', icon: '📊', title: 'Control/status.html', sub: 'Output Jira / Gantt',
+        x: 1210, y: 155, hasIn: true, hasOut: false,
+        file: 'Control/status.html',
+        desc: 'Atualiza status da história (done/partial), KPIs, evidências e #last-updated.'
+      },
+      {
+        id: 'out_banco', shape: 'wide', icon: '🗄️', title: 'Control/banco.html', sub: 'Output DER Postgres',
+        x: 1210, y: 260, hasIn: true, hasOut: false,
+        file: 'Control/banco.html',
+        desc: 'Atualizado sempre que apps/api/prisma/schema.prisma recebe novas tabelas, colunas ou FKs.'
+      },
+      {
+        id: 'out_memory', shape: 'wide', icon: '🧠', title: 'Soul/memory.md', sub: 'Output Memória (RAG)',
+        x: 1210, y: 365, hasIn: true, hasOut: false,
+        file: 'Soul/memory.md',
+        desc: 'Persiste contagem de testes, armadilhas resolvidas e o próximo passo exato.'
+      },
+
+      // Bottom Context Nodes feeding Agent Core (like n8n Tools & Memory)
+      {
+        id: 'ctx_agents', shape: 'circle', icon: '📜', title: 'Soul/AGENTS.md', sub: 'Input: Regras',
+        x: 340, y: 360, topPort: true,
+        file: 'Soul/AGENTS.md',
+        desc: 'Regras obrigatórias de arquitetura (TASK, is_internal, BigInt, PowerShell).'
+      },
+      {
+        id: 'ctx_memory', shape: 'circle', icon: '🧠', title: 'Soul/memory.md', sub: 'Input: Memória',
+        x: 470, y: 380, topPort: true,
+        file: 'Soul/memory.md',
+        desc: 'Recupera contexto histórico e ponto exato de parada no início da sessão.'
+      },
+      {
+        id: 'ctx_skills', shape: 'circle', icon: '⚡', title: 'Soul/skills.md', sub: 'Input: Persona',
+        x: 600, y: 380, topPort: true,
+        file: 'Soul/skills.md',
+        desc: 'Define papel Full-Stack, mapa de documentos vivos e checklist de QA.'
+      },
+      {
+        id: 'ctx_plan', shape: 'pill', icon: '📐', title: 'Pasta Plan/', sub: 'Input: Escopo',
+        x: 720, y: 360, topPort: true,
+        file: 'Plan/plano_itsm.md + modelo_dados_e_apis.md + criterios_aceite_mvp.md',
+        desc: 'Especificação Waterfall: 27 épicos, 71 histórias MVP, schema SQL e critérios Dado/Quando/Então.'
+      }
+    ];
+
+    const EDGES = [
+      // Main pipeline
+      { from: 'user_req', to: 'rules_gate', label: 'INPUT: Prompt', color: 'var(--in)', dashed: false },
+      { from: 'rules_gate', to: 'agent_core', label: 'INPUT: Contexto', color: 'var(--in)', dashed: false },
+      { from: 'agent_core', to: 'qa_gate', label: 'OUTPUT: Código', color: 'var(--primary)', dashed: false },
+      { from: 'qa_gate', to: 'qa_branch', label: 'Resultado', color: 'var(--primary)', dashed: false },
+      { from: 'qa_branch', to: 'fix_loop', label: 'False (Erro)', color: 'var(--danger)', dashed: false },
+      { from: 'fix_loop', to: 'agent_core', label: 'Re-trabalho', color: 'var(--danger)', dashed: true },
+
+      // Outputs from Approved QA
+      { from: 'qa_branch', to: 'out_docs', label: 'OUTPUT', color: 'var(--out)', dashed: false },
+      { from: 'qa_branch', to: 'out_status', label: 'OUTPUT', color: 'var(--out)', dashed: false },
+      { from: 'qa_branch', to: 'out_banco', label: 'OUTPUT (se DB)', color: 'var(--out)', dashed: false },
+      { from: 'qa_branch', to: 'out_memory', label: 'OUTPUT', color: 'var(--out)', dashed: false },
+
+      // Bottom context inputs -> Agent Core sub-ports
+      { from: 'ctx_agents', to: 'agent_core', subIdx: 0, label: 'Rule', color: 'var(--rule)', dashed: true },
+      { from: 'ctx_memory', to: 'agent_core', subIdx: 1, label: 'Memory', color: 'var(--rule)', dashed: true },
+      { from: 'ctx_skills', to: 'agent_core', subIdx: 2, label: 'Skill', color: 'var(--rule)', dashed: true },
+      { from: 'ctx_plan', to: 'agent_core', subIdx: 3, label: 'Plan', color: 'var(--rule)', dashed: true }
+    ];
+
+    const stage = document.getElementById('stage');
+    const svg = document.getElementById('wires-svg');
+    const viewport = document.getElementById('viewport');
+    let selectedId = null;
+    let pulseEnabled = true;
+    let zoom = 0.88;
+    let panX = 20;
+    let panY = 30;
+    const defaultPos = Object.fromEntries(NODES.map(n => [n.id, { x: n.x, y: n.y }]));
+
+    function applyTransform() {
+      stage.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+      document.getElementById('zoom-reset').textContent = `${Math.round(zoom * 100)}%`;
+    }
+
+    function renderNodes() {
+      stage.querySelectorAll('.node').forEach(el => el.remove());
+      NODES.forEach(n => {
+        const el = document.createElement('div');
+        el.className = `node ${n.shape}`;
+        el.id = `node-${n.id}`;
+        el.style.left = `${n.x}px`;
+        el.style.top = `${n.y}px`;
+
+        const boxContent = n.shape === 'wide' || n.shape === 'pill'
+          ? `<span style="font-size:1.35rem">${n.icon}</span><div><div style="font-size:0.82rem;font-weight:700">${n.title}</div><div style="font-size:0.68rem;color:var(--muted)">${n.sub}</div></div>`
+          : `<span>${n.icon}</span>`;
+
+        const subPortsHtml = (n.subPorts || []).map(p => `<span class="port sub" style="left:${p * 100}%"></span>`).join('');
+        const portsHtml = `
+          ${n.hasIn ? '<span class="port in" title="INPUT"></span>' : ''}
+          ${n.hasOut ? '<span class="port out" title="OUTPUT"></span>' : ''}
+          ${n.topPort ? '<span class="port top" title="OUTPUT para Agente"></span>' : ''}
+          ${subPortsHtml}
+        `;
+
+        el.innerHTML = `
+          <div class="node-box">${boxContent}${portsHtml}</div>
+          ${n.shape === 'square' || n.shape === 'circle' ? `<div class="node-title">${n.title}</div><div class="node-sub">${n.sub}</div>` : ''}
+        `;
+
+        let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0, moved = false;
+        el.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+          dragging = true; moved = false;
+          sx = e.clientX; sy = e.clientY; ox = n.x; oy = n.y;
+        });
+        window.addEventListener('mousemove', (e) => {
+          if (!dragging) return;
+          const dx = (e.clientX - sx) / zoom;
+          const dy = (e.clientY - sy) / zoom;
+          if (Math.abs(dx) > 2 || Math.abs(dy) > 2) moved = true;
+          n.x = Math.max(0, ox + dx);
+          n.y = Math.max(0, oy + dy);
+          el.style.left = `${n.x}px`;
+          el.style.top = `${n.y}px`;
+          renderWires();
+        });
+        window.addEventListener('mouseup', () => { dragging = false; });
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (moved) return;
+          selectNode(n.id === selectedId ? null : n.id);
+        });
+
+        stage.appendChild(el);
+      });
+    }
+
+    function getBoxRect(id) {
+      const box = document.querySelector(`#node-${id} .node-box`);
+      const node = NODES.find(n => n.id === id);
+      if (!box || !node) return { x: 0, y: 0, w: 80, h: 80 };
+      return { x: node.x, y: node.y, w: box.offsetWidth, h: box.offsetHeight };
+    }
+
+    function renderWires() {
+      svg.innerHTML = '';
+      EDGES.forEach((edge, i) => {
+        const a = getBoxRect(edge.from);
+        const b = getBoxRect(edge.to);
+        let x1, y1, x2, y2, d;
+
+        if (edge.subIdx !== undefined) {
+          const toNode = NODES.find(n => n.id === edge.to);
+          const pct = toNode.subPorts[edge.subIdx];
+          x1 = a.x + a.w / 2;
+          y1 = a.y;
+          x2 = b.x + b.w * pct;
+          y2 = b.y + b.h;
+          const my = (y1 + y2) / 2;
+          d = `M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}`;
+        } else {
+          x1 = a.x + a.w;
+          y1 = a.y + a.h / 2;
+          x2 = b.x;
+          y2 = b.y + b.h / 2;
+          if (edge.from === 'fix_loop') {
+            x1 = a.x; y1 = a.y + a.h / 2;
+            x2 = b.x + b.w / 2; y2 = b.y + b.h;
+            d = `M ${x1} ${y1} C ${x1 - 120} ${y1}, ${x2} ${y2 + 90}, ${x2} ${y2}`;
+          } else {
+            const mx = (x1 + x2) / 2;
+            d = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+          }
+        }
+
+        const isIn = selectedId && edge.to === selectedId;
+        const isOut = selectedId && edge.from === selectedId;
+        const isDimmed = selectedId && !isIn && !isOut;
+
+        const pathId = `wire-${i}`;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.id = pathId;
+        path.setAttribute('d', d);
+        path.classList.add('wire-path');
+        if (edge.dashed) path.classList.add('dashed');
+        if (isIn) path.classList.add('in-active');
+        if (isOut) path.classList.add('out-active');
+        if (isDimmed) path.classList.add('dimmed');
+        svg.appendChild(path);
+
+        if (pulseEnabled && !isDimmed) {
+          const dotCount = 3;
+          const dur = 1.25;
+          for (let dIdx = 0; dIdx < dotCount; dIdx++) {
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('r', '3.8');
+            circle.setAttribute('fill', edge.color);
+            circle.style.color = edge.color;
+            circle.classList.add('pulse-dot');
+
+            const anim = document.createElementNS('http://www.w3.org/2000/svg', 'animateMotion');
+            anim.setAttribute('dur', `${dur}s`);
+            anim.setAttribute('repeatCount', 'indefinite');
+            anim.setAttribute('begin', `${-((dur / dotCount) * dIdx).toFixed(2)}s`);
+
+            const mpath = document.createElementNS('http://www.w3.org/2000/svg', 'mpath');
+            mpath.setAttributeNS('http://www.w3.org/1999/xlink', 'href', `#${pathId}`);
+            anim.appendChild(mpath);
+            circle.appendChild(anim);
+            svg.appendChild(circle);
+          }
+        }
+
+        const lx = (x1 + x2) / 2;
+        const ly = (y1 + y2) / 2 - 7;
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', lx);
+        label.setAttribute('y', ly);
+        label.setAttribute('text-anchor', 'middle');
+        label.classList.add('wire-label');
+        if (isDimmed) label.style.opacity = '0.18';
+        label.textContent = edge.label;
+        svg.appendChild(label);
+      });
+    }
+
+    function selectNode(id) {
+      selectedId = id;
+      const inNodes = new Set(EDGES.filter(e => e.to === id).map(e => e.from));
+      const outNodes = new Set(EDGES.filter(e => e.from === id).map(e => e.to));
+
+      NODES.forEach(n => {
+        const el = document.getElementById(`node-${n.id}`);
+        el.classList.remove('selected', 'is-input', 'is-output', 'dimmed');
+        if (id) {
+          if (n.id === id) el.classList.add('selected');
+          else if (inNodes.has(n.id)) el.classList.add('is-input');
+          else if (outNodes.has(n.id)) el.classList.add('is-output');
+          else el.classList.add('dimmed');
+        }
+      });
+      renderWires();
+      renderInspector();
+    }
+
+    function renderInspector() {
+      const titleEl = document.getElementById('insp-title');
+      const descEl = document.getElementById('insp-desc');
+      const listEl = document.getElementById('insp-io-list');
+
+      if (!selectedId) {
+        titleEl.textContent = 'Fluxo Completo (Visão Geral)';
+        descEl.textContent = 'Clique em qualquer nó no canvas para destacar seus INPUTs (verde) e OUTPUTs (âmbar).';
+        listEl.innerHTML = NODES.map(n => `
+          <div class="io-item" data-jump="${n.id}">
+            <strong>${n.icon} ${n.title}</strong>
+            <div style="font-size:0.72rem;color:var(--muted)"><code>${n.file}</code></div>
+          </div>
+        `).join('');
+      } else {
+        const node = NODES.find(n => n.id === selectedId);
+        titleEl.textContent = `${node.icon} ${node.title}`;
+        descEl.innerHTML = `${node.desc}<br><code style="display:inline-block;margin-top:6px;">${node.file}</code>`;
+
+        const ins = EDGES.filter(e => e.to === selectedId).map(e => ({ dir: 'INPUT', other: e.from, label: e.label }));
+        const outs = EDGES.filter(e => e.from === selectedId).map(e => ({ dir: 'OUTPUT', other: e.to, label: e.label }));
+        const all = [...ins, ...outs];
+
+        listEl.innerHTML = all.length ? all.map(c => {
+          const other = NODES.find(x => x.id === c.other);
+          return `<div class="io-item" data-jump="${other.id}">
+            <span class="io-pill ${c.dir === 'INPUT' ? 'io-in' : 'io-out'}">${c.dir}</span>
+            <strong>${other.title}</strong>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">Via: ${c.label}</div>
+          </div>`;
+        }).join('') : '<div style="font-size:0.78rem;color:var(--muted)">Sem conexões.</div>';
+      }
+
+      listEl.querySelectorAll('[data-jump]').forEach(el => {
+        el.addEventListener('click', () => selectNode(el.dataset.jump));
+      });
+    }
+
+    // Pan & Zoom
+    let panning = false, px = 0, py = 0;
+    viewport.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.node')) return;
+      panning = true; px = e.clientX - panX; py = e.clientY - panY;
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!panning) return;
+      panX = e.clientX - px; panY = e.clientY - py;
+      applyTransform();
+    });
+    window.addEventListener('mouseup', () => { panning = false; });
+    viewport.addEventListener('click', (e) => { if (!e.target.closest('.node')) selectNode(null); });
+    viewport.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      zoom = Math.min(1.5, Math.max(0.45, zoom + (e.deltaY < 0 ? 0.08 : -0.08)));
+      applyTransform();
+    }, { passive: false });
+
+    document.getElementById('zoom-in').addEventListener('click', () => { zoom = Math.min(1.5, zoom + 0.1); applyTransform(); });
+    document.getElementById('zoom-out').addEventListener('click', () => { zoom = Math.max(0.45, zoom - 0.1); applyTransform(); });
+    document.getElementById('zoom-reset').addEventListener('click', () => { zoom = 0.88; panX = 20; panY = 30; applyTransform(); });
+    document.getElementById('reset-layout').addEventListener('click', () => {
+      NODES.forEach(n => { n.x = defaultPos[n.id].x; n.y = defaultPos[n.id].y; });
+      renderNodes();
+      selectNode(null);
+    });
+    document.getElementById('toggle-pulse').addEventListener('click', (e) => {
+      pulseEnabled = !pulseEnabled;
+      e.target.textContent = pulseEnabled ? '⚡ Fluxo Animado: ON' : '⚡ Fluxo Animado: OFF';
+      renderWires();
+    });
+
+    const themeBtn = document.getElementById('theme-toggle');
+    function applyTheme(theme) {
+      if (theme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        themeBtn.textContent = '🌙 Dark Mode';
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        themeBtn.textContent = '☀️ Light Mode';
+      }
+    }
+    applyTheme(localStorage.getItem('itsm-status-theme') || 'dark');
+    themeBtn.addEventListener('click', () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      localStorage.setItem('itsm-status-theme', next);
+      applyTheme(next);
+    });
+
+    renderNodes();
+    applyTransform();
+    requestAnimationFrame(() => {
+      renderWires();
+      renderInspector();
+    });
+  </script>
+</body>
+</html>

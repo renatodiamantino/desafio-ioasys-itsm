@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Status & Gantt — Plataforma ITSM (MVP)</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --surface: #111827;
+      --surface-2: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #38bdf8;
+      --epic-bg: rgba(30, 41, 59, 0.6);
+      --done: #10b981;
+      --partial: #f59e0b;
+      --in-progress: #3b82f6;
+      --pending: #475569;
+    }
+    [data-theme="light"] {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --border: #cbd5e1;
+      --text: #0f172a;
+      --muted: #475569;
+      --primary: #0284c7;
+      --epic-bg: #e2e8f0;
+      --done: #059669;
+      --partial: #d97706;
+      --in-progress: #2563eb;
+      --pending: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 24px;
+    }
+    .container { max-width: 1440px; margin: 0 auto; }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 { font-size: 1.5rem; font-weight: 700; }
+    .subtitle { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+    .badge-phase {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--primary);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .kpi-label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .kpi-value { font-size: 1.75rem; font-weight: 700; margin-top: 6px; }
+    .kpi-sub { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: var(--surface-2);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .progress-fill { height: 100%; background: var(--done); transition: width 0.3s ease; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .card-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .card-title { font-size: 1.1rem; font-weight: 600; }
+
+    .filters { display: flex; flex-wrap: wrap; gap: 10px; }
+    select, input {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+    }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 0.8rem; color: var(--muted); }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+    .gantt-wrap { overflow-x: auto; }
+    .gantt-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+      font-size: 0.84rem;
+    }
+    .gantt-table th, .gantt-table td {
+      border-bottom: 1px solid var(--border);
+      padding: 8px 6px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    .gantt-table th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.75rem;
+      background: var(--surface-2);
+      position: sticky;
+      top: 0;
+    }
+    .week-col { text-align: center !important; width: 34px; font-size: 0.72rem; }
+    .gantt-bar-cell { padding: 4px 2px !important; position: relative; }
+    .gantt-bar {
+      height: 18px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .status-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .st-done { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .st-partial { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .st-progress { background: rgba(59, 130, 246, 0.18); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+    .st-pending { background: rgba(148, 163, 184, 0.12); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); }
+
+    [data-theme="light"] .st-done { background: rgba(5, 150, 105, 0.12); color: #047857; border-color: rgba(5, 150, 105, 0.35); }
+    [data-theme="light"] .st-partial { background: rgba(217, 119, 6, 0.12); color: #b45309; border-color: rgba(217, 119, 6, 0.35); }
+    [data-theme="light"] .st-progress { background: rgba(37, 99, 235, 0.12); color: #1d4ed8; border-color: rgba(37, 99, 235, 0.35); }
+    [data-theme="light"] .st-pending { background: rgba(100, 116, 139, 0.12); color: #475569; border-color: rgba(100, 116, 139, 0.3); }
+
+    .bar-done { background: var(--done); }
+    .bar-partial { background: var(--partial); }
+    .bar-progress { background: var(--in-progress); }
+    .bar-pending { background: var(--pending); }
+
+    .epic-row { cursor: pointer; user-select: none; }
+    .epic-row td { background: var(--epic-bg); font-weight: 700; color: var(--primary); }
+    .epic-row:hover td { filter: brightness(1.08); }
+    .story-row { cursor: pointer; }
+    .story-row:hover td { background: var(--surface-2); }
+    .row-hint { font-size: 0.72rem; color: var(--muted); font-weight: 400; margin-left: 8px; }
+
+    .scope-box {
+      width: 100%;
+      margin-top: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+    .scope-box summary {
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--primary);
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .scope-box summary::-webkit-details-marker { display: none; }
+    .scope-box summary::before { content: "▸"; font-size: 0.85rem; transition: transform 0.15s ease; }
+    .scope-box[open] summary::before { transform: rotate(90deg); }
+    .scope-content {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--muted);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .scope-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .scope-card h4 { color: var(--text); font-size: 0.85rem; margin-bottom: 6px; }
+    .scope-card ul { padding-left: 18px; display: grid; gap: 4px; }
+    .scope-content strong { color: var(--text); }
+
+    /* Jira-style Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.72);
+      backdrop-filter: blur(3px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 1000;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-dialog {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      width: 100%;
+      max-width: 920px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    }
+    .modal-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-2);
+      gap: 12px;
+    }
+    .modal-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.84rem;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+    .crumb-link {
+      color: var(--primary);
+      cursor: pointer;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .crumb-link:hover { text-decoration: underline; }
+    .modal-close {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      width: 32px;
+      height: 32px;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-close:hover { border-color: var(--primary); color: var(--primary); }
+    .modal-body {
+      display: grid;
+      grid-template-columns: 1.7fr 1fr;
+      overflow-y: auto;
+    }
+    @media (max-width: 760px) {
+      .modal-body { grid-template-columns: 1fr; }
+    }
+    .modal-main {
+      padding: 20px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    @media (max-width: 760px) {
+      .modal-main { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+    .modal-title { font-size: 1.2rem; font-weight: 700; line-height: 1.35; }
+    .modal-section-label {
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .story-box {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    .ac-list { list-style: none; display: grid; gap: 8px; }
+    .ac-item {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.85rem;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .ac-icon { font-size: 0.95rem; line-height: 1.2; }
+    .child-list { display: grid; gap: 6px; }
+    .child-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.84rem;
+    }
+    .child-item:hover { border-color: var(--primary); }
+    .modal-side {
+      padding: 20px;
+      background: var(--surface-2);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.84rem;
+    }
+    .meta-key { color: var(--muted); font-weight: 600; }
+    .meta-val { font-weight: 600; text-align: right; }
+    .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .theme-btn {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+    .theme-btn:hover { border-color: var(--primary); }
+    .phases-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .phase-box {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .phase-box.active { border-color: var(--primary); }
+    .phase-box.done { border-color: var(--done); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Plataforma ITSM — Painel de Status & Gantt (MVP)</h1>
+        <p class="subtitle">Última atualização: <strong id="last-updated">2026-11-16 23:20</strong> · Metodologia Waterfall · Dupla (1 Dev + IA)</p>
+      </div>
+      <div class="header-actions">
+        <button type="button" id="theme-toggle" class="theme-btn" aria-label="Alternar tema">☀️ Light Mode</button>
+        <span class="badge-phase">Fase Atual: F2 — Construção do MVP</span>
+      </div>
+      <details class="scope-box">
+        <summary>🎯 Objetivo & Escopo do Projeto (clique para expandir)</summary>
+        <div class="scope-content">
+          <div class="scope-card">
+            <h4>Visão & Arquitetura</h4>
+            <p>Plataforma ITSM <strong>single-tenant</strong> (inspirada no ServiceNow ITSM) para centralizar chamados, requisições, catálogo, SLA, CMDB e portal de autoatendimento, com motor <strong>No-Code</strong> no MVP e IA nas releases futuras.</p>
+          </div>
+          <div class="scope-card">
+            <h4>Metas Mensuráveis (Produto Completo)</h4>
+            <ul>
+              <li>Reduzir o <strong>MTTR em 30%</strong></li>
+              <li><strong>≥ 25%</strong> de deflexão via Portal / KB / Chatbot</li>
+              <li><strong>≥ 80%</strong> de acerto na classificação automática</li>
+              <li>Cumprimento de SLA <strong>≥ 95%</strong></li>
+            </ul>
+          </div>
+          <div class="scope-card">
+            <h4>Estrutura do Backlog (Scrum / Waterfall)</h4>
+            <ul>
+              <li><strong>27 Épicos</strong> (~165 histórias no produto completo)</li>
+              <li><strong>MVP:</strong> 14 épicos / 71 histórias (18 semanas)</li>
+              <li><strong>Pós-MVP:</strong> 13 épicos em Releases R2, R3 e R4</li>
+              <li><em>Clique em qualquer Épico ou História abaixo para abrir os detalhes estilo Jira.</em></li>
+            </ul>
+          </div>
+        </div>
+      </details>
+    </header>
+
+    <section class="kpis" id="kpis"></section>
+
+    <section class="card">
+      <div class="card-header">
+        <span class="card-title">Fases Waterfall (Cronograma MVP — 18 Semanas)</span>
+      </div>
+      <div class="phases-grid" id="phases-grid"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <span class="card-title">Gantt por História de Usuário (MVP — 71 Histórias)</span>
+          <div class="legend" style="margin-top:8px;">
+            <span class="legend-item"><span class="dot" style="background:var(--done)"></span> Concluído</span>
+            <span class="legend-item"><span class="dot" style="background:var(--partial)"></span> Parcial (Backend/UI)</span>
+            <span class="legend-item"><span class="dot" style="background:var(--in-progress)"></span> Em Andamento</span>
+            <span class="legend-item"><span class="dot" style="background:var(--pending)"></span> Pendente</span>
+          </div>
+        </div>
+        <div class="filters">
+          <select id="filter-epic"><option value="ALL">Todos os Épicos</option></select>
+          <select id="filter-status">
+            <option value="ALL">Todos os Status</option>
+            <option value="done">Concluído</option>
+            <option value="partial">Parcial</option>
+            <option value="progress">Em Andamento</option>
+            <option value="pending">Pendente</option>
+          </select>
+          <input type="text" id="filter-search" placeholder="Buscar US ou título..." />
+        </div>
+      </div>
+
+      <div class="gantt-wrap">
+        <table class="gantt-table">
+          <thead>
+            <tr id="gantt-head">
+              <th style="min-width:85px">ID</th>
+              <th style="min-width:260px">História</th>
+              <th style="min-width:110px">Status</th>
+            </tr>
+          </thead>
+          <tbody id="gantt-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <span class="card-title">Roadmap Pós-MVP — Histórias por Épico (Releases Futuras)</span>
+          <p class="subtitle">Épicos previstos em <code>Plan/plano_itsm.md</code> fora das 71 histórias do MVP (R2, R3 e R4).</p>
+        </div>
+        <div class="filters">
+          <select id="post-filter-epic"><option value="ALL">Todos os Épicos Pós-MVP</option></select>
+          <select id="post-filter-release">
+            <option value="ALL">Todas as Releases</option>
+            <option value="R2">R2</option>
+            <option value="R3">R3</option>
+            <option value="R4">R4</option>
+          </select>
+          <input type="text" id="post-filter-search" placeholder="Buscar US ou título..." />
+        </div>
+      </div>
+      <div class="gantt-wrap">
+        <table class="gantt-table" style="min-width:680px;">
+          <thead>
+            <tr>
+              <th style="width:100px">ID</th>
+              <th>História</th>
+              <th style="width:110px">Release</th>
+              <th style="width:120px">Status</th>
+            </tr>
+          </thead>
+          <tbody id="post-mvp-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="jira-modal" role="dialog" aria-modal="true">
+    <div class="modal-dialog">
+      <div class="modal-top">
+        <div class="modal-breadcrumb" id="modal-breadcrumb"></div>
+        <button type="button" class="modal-close" id="modal-close" aria-label="Fechar">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-main" id="modal-main"></div>
+        <aside class="modal-side" id="modal-side"></aside>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const TOTAL_WEEKS = 18;
+
+    const PHASES = [
+      { id: 'F0', name: 'Descoberta & Requisitos', weeks: 'Sem 1', status: 'done', note: 'Plano, vídeo e backlog fechados' },
+      { id: 'F1', name: 'Design & Arquitetura', weeks: 'Sem 2–3', status: 'done', note: 'Modelo de dados, APIs e critérios MVP' },
+      { id: 'F2', name: 'Construção do MVP', weeks: 'Sem 4–15', status: 'progress', note: 'Em execução: E01 + Web inicial' },
+      { id: 'F3', name: 'Testes & Homologação', weeks: 'Sem 16–17', status: 'pending', note: 'Carga, segurança e aceite' },
+      { id: 'F4', name: 'Go-live / Piloto', weeks: 'Sem 18', status: 'pending', note: 'Produção + hipercuidado' }
+    ];
+
+    // status: 'done' | 'partial' | 'progress' | 'pending'
+    const STORIES = [
+      // E01
+      { id: 'US-001', epic: 'E01 Plataforma Base', title: 'Setup inicial da empresa (Organização + 1º Admin)', start: 4, end: 4, status: 'done' },
+      { id: 'US-002', epic: 'E01 Plataforma Base', title: 'Login e-mail/senha + bloqueio + MFA TOTP', start: 4, end: 4, status: 'done' },
+      { id: 'US-005', epic: 'E01 Plataforma Base', title: 'RBAC (Papéis, permissões e Guards)', start: 4, end: 5, status: 'done' },
+      { id: 'US-006', epic: 'E01 Plataforma Base', title: 'Auditoria imutável de alterações', start: 4, end: 5, status: 'done' },
+      { id: 'US-003', epic: 'E01 Plataforma Base', title: 'SSO corporativo (SAML / OIDC)', start: 5, end: 5, status: 'done' },
+      { id: 'US-004', epic: 'E01 Plataforma Base', title: 'Importação usuários/grupos (CSV e SCIM)', start: 5, end: 5, status: 'done' },
+      { id: 'US-008', epic: 'E01 Plataforma Base', title: 'Internacionalização (pt-BR / en / es)', start: 5, end: 6, status: 'done' },
+
+      // E27 (Admin & No-code base)
+      { id: 'US-330', epic: 'E27 Admin & No-Code', title: 'Categorias, códigos resolução e motivos espera', start: 5, end: 6, status: 'pending' },
+      { id: 'US-331', epic: 'E27 Admin & No-Code', title: 'Gestão de grupos e membros', start: 5, end: 6, status: 'pending' },
+      { id: 'US-332', epic: 'E27 Admin & No-Code', title: 'Locais, departamentos e fuso horário', start: 5, end: 6, status: 'pending' },
+      { id: 'US-333', epic: 'E27 Admin & No-Code', title: 'Campos personalizados e layout de formulários no-code', start: 6, end: 7, status: 'pending' },
+      { id: 'US-334', epic: 'E27 Admin & No-Code', title: 'Políticas de UI (campos condicionais)', start: 6, end: 7, status: 'pending' },
+
+      // E02 Incidentes
+      { id: 'US-020', epic: 'E02 Gestão de Incidentes', title: 'Registrar incidente + anexos + número INC', start: 7, end: 7, status: 'partial' },
+      { id: 'US-021', epic: 'E02 Gestão de Incidentes', title: 'Matriz automática Impacto × Urgência', start: 7, end: 7, status: 'done' },
+      { id: 'US-022', epic: 'E02 Gestão de Incidentes', title: 'Ciclo de vida de estados', start: 7, end: 8, status: 'done' },
+      { id: 'US-023', epic: 'E02 Gestão de Incidentes', title: 'Atribuição e reatribuição a grupos/agentes', start: 7, end: 8, status: 'done' },
+      { id: 'US-024', epic: 'E02 Gestão de Incidentes', title: 'Regras de atribuição automática', start: 8, end: 8, status: 'pending' },
+      { id: 'US-025', epic: 'E02 Gestão de Incidentes', title: 'Notas de trabalho internas vs Comentários públicos', start: 8, end: 8, status: 'done' },
+      { id: 'US-026', epic: 'E02 Gestão de Incidentes', title: 'Reabertura de incidente pelo usuário', start: 8, end: 8, status: 'partial' },
+      { id: 'US-027', epic: 'E02 Gestão de Incidentes', title: 'Fechamento automático após N dias', start: 8, end: 9, status: 'pending' },
+      { id: 'US-028', epic: 'E02 Gestão de Incidentes', title: 'Código e nota de resolução obrigatórios', start: 8, end: 9, status: 'done' },
+      { id: 'US-029', epic: 'E02 Gestão de Incidentes', title: 'Vínculo Incidente Pai e Filhos', start: 9, end: 9, status: 'partial' },
+      { id: 'US-032', epic: 'E02 Gestão de Incidentes', title: 'Regras de escalonamento por tempo/prioridade', start: 9, end: 9, status: 'pending' },
+      { id: 'US-033', epic: 'E02 Gestão de Incidentes', title: 'Modelos (templates) de incidente', start: 9, end: 9, status: 'pending' },
+
+      // E03 Workspace
+      { id: 'US-040', epic: 'E03 Workspace do Agente', title: 'Home do agente (Meu trabalho, Fila, SLAs < 1h)', start: 9, end: 10, status: 'partial' },
+      { id: 'US-041', epic: 'E03 Workspace do Agente', title: 'Listas com filtros, colunas e views salvas', start: 9, end: 10, status: 'pending' },
+      { id: 'US-042', epic: 'E03 Workspace do Agente', title: 'Abas múltiplas de registros', start: 10, end: 10, status: 'pending' },
+      { id: 'US-043', epic: 'E03 Workspace do Agente', title: 'Painel lateral de contexto (solicitante, CI)', start: 10, end: 10, status: 'pending' },
+      { id: 'US-044', epic: 'E03 Workspace do Agente', title: 'Sugestão de incidentes/KB similares', start: 10, end: 11, status: 'pending' },
+      { id: 'US-045', epic: 'E03 Workspace do Agente', title: 'Linha do tempo única do registro', start: 10, end: 11, status: 'pending' },
+      { id: 'US-046', epic: 'E03 Workspace do Agente', title: 'Atualização em massa na lista', start: 11, end: 11, status: 'pending' },
+      { id: 'US-047', epic: 'E03 Workspace do Agente', title: 'Atalhos de teclado e ações rápidas', start: 11, end: 11, status: 'pending' },
+      { id: 'US-048', epic: 'E03 Workspace do Agente', title: 'Tempo real e presença (WebSocket)', start: 11, end: 11, status: 'pending' },
+      { id: 'US-051', epic: 'E03 Workspace do Agente', title: 'Busca global em registros, usuários e KB', start: 11, end: 11, status: 'pending' },
+
+      // E04 SLA
+      { id: 'US-060', epic: 'E04 SLA & Calendários', title: 'Definições de SLA (resposta/resolução)', start: 11, end: 12, status: 'pending' },
+      { id: 'US-061', epic: 'E04 SLA & Calendários', title: 'Calendários comerciais e feriados', start: 11, end: 12, status: 'pending' },
+      { id: 'US-062', epic: 'E04 SLA & Calendários', title: 'Cronômetro e semáforo visual de SLA', start: 12, end: 12, status: 'pending' },
+      { id: 'US-063', epic: 'E04 SLA & Calendários', title: 'Alertas automáticos 50%, 75%, 100%', start: 12, end: 12, status: 'pending' },
+      { id: 'US-065', epic: 'E04 SLA & Calendários', title: 'Relatório de cumprimento de SLA', start: 12, end: 12, status: 'pending' },
+      { id: 'US-066', epic: 'E04 SLA & Calendários', title: 'Recálculo de SLA ao mudar prioridade', start: 12, end: 12, status: 'pending' },
+
+      // E05 Notificações
+      { id: 'US-070', epic: 'E05 Notificações & E-mail', title: 'E-mails de ciclo de vida do chamado', start: 12, end: 13, status: 'pending' },
+      { id: 'US-071', epic: 'E05 Notificações & E-mail', title: 'Abertura de chamado via e-mail (Inbound)', start: 12, end: 13, status: 'pending' },
+      { id: 'US-072', epic: 'E05 Notificações & E-mail', title: 'Resposta de e-mail vira comentário', start: 13, end: 13, status: 'pending' },
+      { id: 'US-073', epic: 'E05 Notificações & E-mail', title: 'Editor de modelos de notificação', start: 13, end: 13, status: 'pending' },
+      { id: 'US-075', epic: 'E05 Notificações & E-mail', title: 'Notificações in-app em tempo real', start: 13, end: 13, status: 'pending' },
+
+      // E06 Portal + E07 Catálogo + E08 KB
+      { id: 'US-080', epic: 'E06 Portal Autoatendimento', title: 'Home do Portal (busca, ajuda, pedidos)', start: 13, end: 13, status: 'done' },
+      { id: 'US-081', epic: 'E06 Portal Autoatendimento', title: 'Abertura de incidente com deflexão por KB', start: 13, end: 14, status: 'partial' },
+      { id: 'US-082', epic: 'E06 Portal Autoatendimento', title: 'Acompanhar e comentar chamados no Portal', start: 13, end: 14, status: 'done' },
+      { id: 'US-083', epic: 'E06 Portal Autoatendimento', title: 'Aprovar/rejeitar pedidos no Portal', start: 14, end: 14, status: 'pending' },
+      { id: 'US-084', epic: 'E06 Portal Autoatendimento', title: 'Personalização visual (logo, cores)', start: 14, end: 14, status: 'done' },
+
+      { id: 'US-090', epic: 'E07 Catálogo & Requisições', title: 'Itens de catálogo com preço e prazo', start: 14, end: 14, status: 'pending' },
+      { id: 'US-091', epic: 'E07 Catálogo & Requisições', title: 'Construtor de formulários condicionais', start: 14, end: 14, status: 'pending' },
+      { id: 'US-092', epic: 'E07 Catálogo & Requisições', title: 'Carrinho e pedido para terceiros', start: 14, end: 14, status: 'pending' },
+      { id: 'US-093', epic: 'E07 Catálogo & Requisições', title: 'Hierarquia REQ → RITM → SCTASK', start: 14, end: 15, status: 'pending' },
+      { id: 'US-094', epic: 'E07 Catálogo & Requisições', title: 'Aprovação via Portal ou E-mail (1 clique)', start: 14, end: 15, status: 'pending' },
+
+      { id: 'US-100', epic: 'E08 Base de Conhecimento', title: 'Editor rico de artigos', start: 13, end: 13, status: 'pending' },
+      { id: 'US-101', epic: 'E08 Base de Conhecimento', title: 'Fluxo editorial (Rascunho → Publicado)', start: 13, end: 14, status: 'pending' },
+      { id: 'US-102', epic: 'E08 Base de Conhecimento', title: 'Múltiplas bases e permissões', start: 13, end: 14, status: 'pending' },
+      { id: 'US-103', epic: 'E08 Base de Conhecimento', title: 'Busca tolerante a erros (pg_trgm)', start: 14, end: 14, status: 'pending' },
+      { id: 'US-104', epic: 'E08 Base de Conhecimento', title: 'Avaliação de artigo (útil/não útil)', start: 14, end: 14, status: 'pending' },
+      { id: 'US-105', epic: 'E08 Base de Conhecimento', title: 'Criar artigo a partir de incidente resolvido', start: 14, end: 14, status: 'pending' },
+      { id: 'US-106', epic: 'E08 Base de Conhecimento', title: 'Vincular artigo como solução do incidente', start: 14, end: 14, status: 'pending' },
+
+      // E12, E13, E14, E24, E26
+      { id: 'US-170', epic: 'E12 CMDB Mínima', title: 'Cadastro de CIs por classe', start: 6, end: 7, status: 'pending' },
+      { id: 'US-171', epic: 'E12 CMDB Mínima', title: 'Importação CSV de CIs', start: 7, end: 7, status: 'pending' },
+
+      { id: 'US-190', epic: 'E13 Workflow No-Code', title: 'Editor visual básico de fluxos', start: 14, end: 15, status: 'pending' },
+      { id: 'US-191', epic: 'E13 Workflow No-Code', title: 'Regras de negócio sem código', start: 14, end: 15, status: 'pending' },
+
+      { id: 'US-200', epic: 'E14 Relatórios & Dashboards', title: 'Dashboards prontos do service desk', start: 15, end: 15, status: 'pending' },
+      { id: 'US-201', epic: 'E14 Relatórios & Dashboards', title: 'Construtor de relatórios no-code', start: 15, end: 15, status: 'pending' },
+      { id: 'US-203', epic: 'E14 Relatórios & Dashboards', title: 'Exportação CSV / Excel / PDF', start: 15, end: 15, status: 'pending' },
+
+      { id: 'US-300', epic: 'E24 Pesquisas CSAT', title: 'Pesquisa curta 1–5 ao fechar chamado', start: 15, end: 15, status: 'pending' },
+      { id: 'US-301', epic: 'E24 Pesquisas CSAT', title: 'Relatório de CSAT por grupo/agente', start: 15, end: 15, status: 'pending' },
+
+      { id: 'US-320', epic: 'E26 API & Webhooks', title: 'API REST + Swagger + Tokens por app', start: 15, end: 15, status: 'partial' },
+      { id: 'US-321', epic: 'E26 API & Webhooks', title: 'Webhooks assinados com retry', start: 15, end: 15, status: 'pending' }
+    ];
+
+    const STATUS_LABEL = {
+      done: { text: 'Concluído', cls: 'st-done', bar: 'bar-done' },
+      partial: { text: 'Parcial', cls: 'st-partial', bar: 'bar-partial' },
+      progress: { text: 'Em Andamento', cls: 'st-progress', bar: 'bar-progress' },
+      pending: { text: 'Pendente', cls: 'st-pending', bar: 'bar-pending' }
+    };
+
+    function renderKPIs() {
+      const total = STORIES.length;
+      const done = STORIES.filter(s => s.status === 'done').length;
+      const partial = STORIES.filter(s => s.status === 'partial').length;
+      const progress = STORIES.filter(s => s.status === 'progress').length;
+      const pending = STORIES.filter(s => s.status === 'pending').length;
+      const pct = Math.round(((done + partial * 0.5) / total) * 100);
+
+      document.getElementById('kpis').innerHTML = `
+        <div class="kpi">
+          <div class="kpi-label">Progresso Geral do MVP</div>
+          <div class="kpi-value">${pct}%</div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+          <div class="kpi-sub">${done} concluídas · ${partial} parciais · ${total} histórias</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Histórias Concluídas</div>
+          <div class="kpi-value" style="color:var(--done)">${done}</div>
+          <div class="kpi-sub">Validadas com build + testes</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Em Andamento / Parcial</div>
+          <div class="kpi-value" style="color:var(--partial)">${partial + progress}</div>
+          <div class="kpi-sub">Backend ou UI em construção</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Pendentes no MVP</div>
+          <div class="kpi-value" style="color:var(--muted)">${pending}</div>
+          <div class="kpi-sub">Próximas entregas da Fase F2</div>
+        </div>
+      `;
+    }
+
+    function renderPhases() {
+      document.getElementById('phases-grid').innerHTML = PHASES.map(p => {
+        const badge = STATUS_LABEL[p.status];
+        return `
+          <div class="phase-box ${p.status === 'done' ? 'done' : p.status === 'progress' ? 'active' : ''}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <strong>${p.id} · ${p.weeks}</strong>
+              <span class="status-pill ${badge.cls}">${badge.text}</span>
+            </div>
+            <div style="font-size:0.9rem;font-weight:600;">${p.name}</div>
+            <div style="font-size:0.78rem;color:var(--muted);margin-top:4px;">${p.note}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function initHeaderWeeks() {
+      const head = document.getElementById('gantt-head');
+      for (let w = 1; w <= TOTAL_WEEKS; w++) {
+        const th = document.createElement('th');
+        th.className = 'week-col';
+        th.textContent = `S${w}`;
+        head.appendChild(th);
+      }
+      const epics = [...new Set(STORIES.map(s => s.epic))];
+      const sel = document.getElementById('filter-epic');
+      epics.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e;
+        opt.textContent = e;
+        sel.appendChild(opt);
+      });
+    }
+
+    const EPIC_GOALS = {
+      'E01 Plataforma Base': 'Estabelecer a fundação segura da instância single-tenant: setup inicial, autenticação (Argon2/MFA/SSO), RBAC, auditoria imutável, importação de usuários e multi-idioma.',
+      'E27 Admin & No-Code': 'Permitir que administradores configurem categorias, grupos, locais, campos personalizados, layouts de formulário e políticas de UI sem escrever código.',
+      'E02 Gestão de Incidentes': 'Restaurar serviços de TI rapidamente: registro de incidentes, matriz Impacto × Urgência, ciclo de vida completo, atribuição, notas internas/públicas e resolução.',
+      'E03 Workspace do Agente': 'Centralizar a operação do agente em uma tela única (SOW): filas priorizadas, abas múltiplas, painel lateral contextual, linha do tempo unificada e busca global.',
+      'E04 SLA & Calendários': 'Garantir prazos de atendimento com definições de SLA de resposta/resolução, calendários comerciais/feriados, cronômetro visual e alertas preventivos.',
+      'E05 Notificações & E-mail': 'Automatizar a comunicação multicanal com usuários e agentes via e-mails transacionais, abertura/resposta por e-mail (inbound) e notificações in-app.',
+      'E06 Portal Autoatendimento': 'Oferecer um portal amigável ao usuário final para buscar soluções, abrir chamados com deflexão por KB, acompanhar pedidos e aprovar solicitações.',
+      'E07 Catálogo & Requisições': 'Estruturar pedidos de serviço com itens catalogados, formulários dinâmicos, carrinho, hierarquia REQ → RITM → SCTASK e aprovações.',
+      'E08 Base de Conhecimento': 'Capturar e publicar soluções reutilizáveis com editor rico, fluxo editorial, múltiplas bases, busca tolerante a erros (pg_trgm) e vínculo com incidentes.',
+      'E12 CMDB Mínima': 'Manter o inventário básico de Itens de Configuração (servidores, apps, redes, computadores) por classe e importação CSV para contextualizar chamados.',
+      'E13 Workflow No-Code': 'Automatizar aprovações, tarefas e regras de negócio sem código, conectando eventos de chamados a ações automáticas.',
+      'E14 Relatórios & Dashboards': 'Dar visibilidade gerencial sobre volume, backlog, prioridades e cumprimento de SLA com dashboards prontos, construtor visual e exportação.',
+      'E24 Pesquisas CSAT': 'Medir a satisfação do usuário final após o encerramento de chamados e consolidar indicadores por grupo e agente.',
+      'E26 API & Webhooks': 'Integrar a plataforma com sistemas externos por meio de API REST documentada (OpenAPI/Swagger), tokens por aplicação e webhooks de eventos.',
+      'E09 Gestão de Problemas': 'Investigar causas raiz de incidentes recorrentes, documentar soluções de contorno, publicar Erros Conhecidos e resolver incidentes vinculados em massa.',
+      'E10 Gestão de Mudanças': 'Controlar alterações no ambiente de TI com avaliação de risco, aprovações (CAB), calendário de janelas/congelamento, detecção de conflitos e PIR.',
+      'E11 Gestão de Releases': 'Agrupar mudanças relacionadas em releases planejadas com fases, checklists de go/no-go e acompanhamento em painel.',
+      'E15 Performance Analytics': 'Fornecer séries históricas diárias de KPIs (MTTR, FCR, backlog, SLA), metas com alertas, drill-down e previsão de volume.',
+      'E16 Incidentes Graves (MIM)': 'Coordenar crises de alta severidade com workspace dedicado, salas de guerra (Teams/Slack), comunicados multicanal e relatório pós-incidente.',
+      'E17 Classificação/Roteamento ML': 'Reduzir triagem manual prevendo categoria, prioridade e grupo via Machine Learning treinado no histórico do cliente e agrupando incidentes similares.',
+      'E18 IA Generativa': 'Acelerar o trabalho de agentes e usuários com resumos automáticos, rascunho de notas/artigos, sugestões de resposta e busca RAG no portal.',
+      'E19 Agente Virtual & Chat': 'Resolver dúvidas e pedidos comuns via chatbot (portal e Teams/Slack) com NLU e transbordo com contexto para atendimento humano ao vivo.',
+      'E20 Walk-up / Balcão': 'Organizar o atendimento presencial de TI com check-in online/totem, agendamento de horário e fila dedicada vinculada a incidentes/ativos.',
+      'E21 Integração DevOps': 'Conectar pipelines CI/CD (GitHub/GitLab/Azure/Jenkins) à gestão de mudanças com criação automática, aprovação por risco e rastreabilidade de deploys.',
+      'E22 Melhoria Contínua': 'Gerenciar iniciativas de melhoria contínua vinculadas a problemas e KPIs para evoluir os serviços de TI ao longo do tempo.',
+      'E23 Força de Trabalho': 'Otimizar escalas, plantões (on-call), habilidades e carga dos agentes, incluindo mineração de processos para identificar gargalos.',
+      'E25 App Mobile': 'Permitir que usuários acompanhem/aprovem chamados e técnicos atuem na fila ou leiam QR/código de barras de ativos pelo celular.'
+    };
+
+    const STORY_GOALS = {
+      'US-001': 'Como admin, quero configurar os dados iniciais da empresa (nome, logo, domínio de e-mail, fuso horário), para preparar a instância para uso.',
+      'US-002': 'Como usuário, quero entrar com e-mail/senha e MFA, para acessar com segurança.',
+      'US-003': 'Como admin, quero configurar SSO (SAML/OIDC com Azure AD/Google), para que os funcionários usem a conta corporativa.',
+      'US-004': 'Como admin, quero importar usuários e grupos (CSV e SCIM), para não cadastrar manualmente.',
+      'US-005': 'Como admin, quero definir papéis (usuário, agente, gestor, admin) e permissões por módulo, para controlar o acesso.',
+      'US-006': 'Como auditor, quero ver o histórico de alterações de qualquer registro (quem, quando, valor antigo/novo), para garantir rastreabilidade.',
+      'US-008': 'Como usuário, quero a interface em pt-BR/en/es, para usar no meu idioma.',
+      'US-330': 'Como admin, quero gerenciar categorias, subcategorias, códigos de resolução e motivos de espera, para padronizar os registros.',
+      'US-331': 'Como admin, quero gerenciar grupos, membros, gestor e e-mail do grupo, para organizar as equipes resolvedoras.',
+      'US-332': 'Como admin, quero cadastrar locais, departamentos e empresas, para estruturar a organização.',
+      'US-333': 'Como admin, quero adicionar campos personalizados e alterar o layout de formulários sem código, para adaptar a plataforma à empresa.',
+      'US-334': 'Como admin, quero tornar campos obrigatórios/visíveis/somente leitura conforme condições, para guiar o preenchimento correto.',
+      'US-020': 'Como agente, quero registrar um incidente com solicitante, categoria/subcategoria, item afetado, descrição e anexos, para documentar a falha.',
+      'US-021': 'Como sistema, quero calcular a prioridade a partir da matriz Impacto × Urgência, para padronizar a priorização.',
+      'US-022': 'Como agente, quero mover o incidente pelos estados Novo → Em andamento → Em espera → Resolvido → Fechado/Cancelado, para refletir o ciclo de vida.',
+      'US-023': 'Como agente, quero atribuir a um grupo e a uma pessoa, e reatribuir com justificativa, para encaminhar ao time certo.',
+      'US-024': 'Como sistema, quero aplicar regras de atribuição automática por categoria/local/CI, para reduzir triagem manual.',
+      'US-025': 'Como agente, quero separar notas de trabalho (internas) de comentários (visíveis ao usuário), para comunicar sem expor informação interna.',
+      'US-026': 'Como usuário, quero reabrir um incidente resolvido em até N dias, para quando o problema voltar.',
+      'US-027': 'Como sistema, quero fechar automaticamente incidentes resolvidos após N dias, para manter a fila limpa.',
+      'US-028': 'Como agente, quero exigir código e nota de resolução ao resolver, para ter dados de qualidade.',
+      'US-029': 'Como agente, quero vincular incidentes parecidos como filhos de um pai, e que resolver o pai resolva os filhos, para tratar falhas em massa.',
+      'US-032': 'Como gestor, quero regras de escalonamento (funcional e hierárquica) por tempo/prioridade, para não deixar chamados parados.',
+      'US-033': 'Como agente, quero usar modelos de incidente (templates), para preencher casos comuns rapidamente.',
+      'US-040': 'Como agente, quero uma página inicial com "Meu trabalho", "Fila do meu grupo", "Não atribuídos" e "SLA vencendo", para saber o que fazer primeiro.',
+      'US-041': 'Como agente, quero listas com filtro, ordenação, colunas configuráveis e filtros salvos, para organizar minha fila.',
+      'US-042': 'Como agente, quero abrir vários registros em abas dentro do workspace, para trabalhar em paralelo.',
+      'US-043': 'Como agente, quero um painel lateral com dados do solicitante, chamados recentes dele e CI afetado, para ter contexto sem trocar de tela.',
+      'US-044': 'Como agente, quero ver artigos e incidentes resolvidos parecidos no painel lateral, para resolver mais rápido.',
+      'US-045': 'Como agente, quero uma linha do tempo única (notas, comentários, e-mails, mudanças de campo, SLA), para entender o histórico.',
+      'US-046': 'Como agente, quero atualizar muitos registros de uma vez, para ganhar tempo.',
+      'US-047': 'Como agente, quero atalhos de teclado e ações rápidas (atribuir a mim, resolver, colocar em espera), para trabalhar mais rápido.',
+      'US-048': 'Como agente, quero ver atualizações em tempo real e saber se outro agente está editando o mesmo registro, para evitar conflito.',
+      'US-051': 'Como agente, quero uma busca global em todos os registros e artigos, para achar qualquer coisa rapidamente.',
+      'US-060': 'Como admin, quero definir SLAs de resposta e de resolução com condições de início, pausa, parada e reinício, para medir o atendimento.',
+      'US-061': 'Como admin, quero calendários de expediente e feriados por região, para calcular SLA em horário comercial.',
+      'US-062': 'Como agente, quero ver o cronômetro e a % consumida do SLA no registro e na lista, com cores, para priorizar.',
+      'US-063': 'Como sistema, quero notificar em 50%, 75% e 100% do SLA, para evitar violações.',
+      'US-065': 'Como gestor, quero relatório de cumprimento de SLA por grupo, prioridade e período, para gerir desempenho.',
+      'US-066': 'Como admin, quero recalcular SLAs ao mudar a prioridade, para manter a medição correta.',
+      'US-070': 'Como usuário, quero receber e-mail ao abrir, atualizar e resolver meu chamado, para acompanhar.',
+      'US-071': 'Como usuário, quero abrir um chamado enviando e-mail para uma caixa, para usar um canal conhecido.',
+      'US-072': 'Como usuário, quero responder o e-mail e ter a resposta como comentário no chamado, para conversar sem abrir o portal.',
+      'US-073': 'Como admin, quero editar modelos de notificação com variáveis e condições, para personalizar a comunicação.',
+      'US-075': 'Como agente, quero notificações no app (sininho) em tempo real, para reagir rápido.',
+      'US-080': 'Como usuário, quero uma página inicial com busca, "Preciso de ajuda", "Quero pedir algo" e "Meus chamados", para resolver sozinho.',
+      'US-081': 'Como usuário, quero abrir um incidente com formulário simples e ver artigos sugeridos enquanto digito, para talvez nem precisar abrir.',
+      'US-082': 'Como usuário, quero acompanhar e comentar meus chamados e pedidos, para saber o andamento.',
+      'US-083': 'Como usuário, quero aprovar ou rejeitar pedidos pendentes comigo no portal, para não travar o processo.',
+      'US-084': 'Como admin, quero personalizar logo, cores e banners, para refletir a marca da empresa.',
+      'US-090': 'Como admin, quero criar itens de catálogo com categorias, descrição, imagem, preço e prazo, para oferecer serviços.',
+      'US-091': 'Como admin, quero um construtor de formulários (texto, lista, data, referência a usuário/CI, anexo) com campos condicionais, para coletar o que é preciso.',
+      'US-092': 'Como usuário, quero pedir um ou vários itens (carrinho) para mim ou para outra pessoa, para resolver de uma vez.',
+      'US-093': 'Como sistema, quero gerar Requisição → Item → Tarefas de atendimento conforme o fluxo do item, para organizar a entrega.',
+      'US-094': 'Como aprovador, quero aprovar por e-mail ou portal (gestor, grupo, valor), para dar agilidade.',
+      'US-100': 'Como autor, quero escrever artigos em editor rico com imagens, para documentar soluções.',
+      'US-101': 'Como revisor, quero o fluxo Rascunho → Revisão → Publicado → Aposentado, para garantir qualidade.',
+      'US-102': 'Como admin, quero várias bases (TI, RH, interna de agentes) com permissões de leitura/escrita, para separar públicos.',
+      'US-103': 'Como usuário, quero buscar artigos com tolerância a erros de digitação e sinônimos, para achar respostas.',
+      'US-104': 'Como usuário, quero avaliar o artigo (útil/não útil, estrelas, comentário), para ajudar a melhorar.',
+      'US-105': 'Como agente, quero criar um artigo a partir de um incidente resolvido, para reaproveitar a solução.',
+      'US-106': 'Como agente, quero anexar um artigo ao chamado como solução, para medir uso dos artigos.',
+      'US-170': 'Como admin, quero cadastrar Itens de Configuração (servidor, computador, aplicação, banco, rede) com atributos por classe, para mapear o ambiente.',
+      'US-171': 'Como admin, quero importar CIs via CSV, para popular a CMDB rapidamente.',
+      'US-190': 'Como admin, quero um editor visual de fluxos (gatilho, condição, aprovação, tarefa, notificação, espera, atualizar registro), para automatizar processos.',
+      'US-191': 'Como admin, quero regras de negócio sem código ("quando campo X mudar, faça Y"), para automatizar validações e ações.',
+      'US-200': 'Como gestor, quero dashboards prontos do service desk (abertos, backlog, por prioridade, por grupo, SLA), para acompanhar a operação.',
+      'US-201': 'Como gestor, quero criar relatórios (lista, barras, pizza, linha, indicador) sem código, para análises personalizadas.',
+      'US-203': 'Como gestor, quero exportar listas para CSV/Excel/PDF, para compartilhar dados.',
+      'US-300': 'Como usuário, quero responder uma pesquisa curta (1–5 + comentário) ao fechar o chamado, para avaliar o atendimento.',
+      'US-301': 'Como gestor, quero relatório de CSAT por grupo/agente, para medir a satisfação.',
+      'US-320': 'Como desenvolvedor, quero API REST documentada (OpenAPI) para todos os registros, com tokens por aplicação, para integrar sistemas.',
+      'US-321': 'Como desenvolvedor, quero webhooks de eventos (criado, atualizado, resolvido), para reagir em tempo real.',
+      'US-120': 'Como gestor de problemas, quero registrar um problema e vincular vários incidentes, para tratar a causa.',
+      'US-121': 'Como gestor, quero estados Novo → Avaliação → Análise de causa raiz → Correção em andamento → Resolvido → Fechado, para controlar a investigação.',
+      'US-122': 'Como analista, quero registrar causa raiz (5 porquês, Ishikawa) e solução de contorno, para documentar.',
+      'US-123': 'Como analista, quero publicar um Erro Conhecido com solução de contorno visível aos agentes, para acelerar o atendimento.',
+      'US-124': 'Como sistema, quero resolver incidentes vinculados quando o problema for resolvido, notificando os usuários.',
+      'US-125': 'Como gestor, quero tarefas de problema para outros grupos, para dividir a análise.',
+      'US-126': 'Como gestor, quero ver incidentes recorrentes (mesmo CI/categoria) sugeridos como candidatos a problema, para ser proativo.',
+      'US-140': 'Como solicitante, quero criar mudanças Padrão (pré-aprovada, de modelo), Normal e Emergencial, para seguir o fluxo correto.',
+      'US-141': 'Como solicitante, quero informar justificativa, plano de implementação, plano de rollback, plano de teste, janela e CIs afetados.',
+      'US-142': 'Como sistema, quero calcular o risco por questionário + histórico de falhas do CI, para orientar a aprovação.',
+      'US-143': 'Como gestor, quero aprovações por etapa (técnica, CAB, negócio) conforme tipo e risco.',
+      'US-144': 'Como gestor, quero um calendário de mudanças com janelas de manutenção e períodos de congelamento, para evitar conflitos.',
+      'US-145': 'Como sistema, quero detectar conflitos (mesmo CI, mesmo horário, fora da janela), para alertar antes de aprovar.',
+      'US-146': 'Como CAB, quero agenda de reunião com a lista de mudanças a avaliar e registro das decisões.',
+      'US-147': 'Como implementador, quero tarefas de mudança e registro do resultado (sucesso, falha, rollback).',
+      'US-148': 'Como gestor, quero revisão pós-implementação (PIR) para mudanças com falha.',
+      'US-149': 'Como admin, quero um catálogo de mudanças padrão, para agilizar mudanças repetitivas.',
+      'US-150': 'Como analista, quero ver o impacto da mudança nos serviços via CMDB, para avaliar riscos.',
+      'US-160': 'Como gestor de release, quero agrupar mudanças em uma release com fases e datas.',
+      'US-161': 'Como gestor, quero tarefas de release e checklist de go/no-go.',
+      'US-162': 'Como gestor, quero acompanhar o status da release em um painel.',
+      'US-210': 'Como gestor, quero KPIs com histórico diário (MTTR, FCR, backlog, reabertura, % SLA).',
+      'US-211': 'Como gestor, quero metas e limites com alertas.',
+      'US-212': 'Como gestor, quero detalhar (drill-down) por grupo, categoria, agente.',
+      'US-213': 'Como gestor, quero previsão de volume de chamados.',
+      'US-220': 'Como agente, quero propor um incidente como grave, e o gestor aceitar/rejeitar.',
+      'US-221': 'Como gestor de MIM, quero um workspace de crise com linha do tempo, tarefas, participantes e serviços afetados.',
+      'US-222': 'Como gestor de MIM, quero criar sala de guerra no Teams/Slack automaticamente.',
+      'US-223': 'Como gestor, quero enviar comunicados a partes interessadas por modelos e canais (e-mail, SMS).',
+      'US-224': 'Como gestor, quero gerar relatório pós-incidente (PIR) com linha do tempo automática.',
+      'US-225': 'Como sistema, quero sugerir incidente grave quando houver pico de chamados semelhantes.',
+      'US-230': 'Como sistema, quero prever categoria, prioridade e grupo a partir do texto do chamado.',
+      'US-231': 'Como admin, quero treinar e reavaliar o modelo com o histórico do tenant e ver a precisão.',
+      'US-232': 'Como admin, quero definir limiar de confiança para aplicar automaticamente ou só sugerir.',
+      'US-233': 'Como agente, quero aceitar ou corrigir a sugestão, e que a correção alimente o modelo.',
+      'US-234': 'Como sistema, quero agrupar incidentes semelhantes (clustering) para apoiar Problemas.',
+      'US-240': 'Como agente, quero um resumo do incidente com um clique (histórico, ações, situação atual).',
+      'US-241': 'Como agente, quero que a IA rascunhe a nota de resolução ao resolver.',
+      'US-242': 'Como agente, quero que a IA rascunhe um artigo a partir do incidente resolvido.',
+      'US-243': 'Como agente, quero sugestões de resposta ao usuário no tom adequado.',
+      'US-244': 'Como usuário, quero busca no portal com resposta gerada a partir dos artigos (RAG), com links das fontes.',
+      'US-245': 'Como analista de mudança, quero resumo de risco e histórico da mudança.',
+      'US-246': 'Como admin, quero ligar/desligar cada recurso de IA e registrar uso/custo, sem enviar dados para treinar modelos de terceiros.',
+      'US-250': 'Como usuário, quero conversar com um chatbot no portal e no Teams/Slack.',
+      'US-251': 'Como admin, quero desenhar conversas (redefinir senha, status do chamado, pedir item) num editor visual.',
+      'US-252': 'Como bot, quero entender a intenção em linguagem natural.',
+      'US-253': 'Como usuário, quero ser transferido para um agente humano com o contexto da conversa.',
+      'US-254': 'Como agente, quero atender chats ao vivo no workspace com fila e limite de chats simultâneos.',
+      'US-260': 'Como usuário, quero fazer check-in online ou no totem e ver a posição na fila.',
+      'US-261': 'Como usuário, quero agendar horário no balcão de TI.',
+      'US-262': 'Como técnico, quero uma fila do balcão e registrar o atendimento vinculado a incidente/ativo.',
+      'US-270': 'Como engenheiro, quero que o pipeline (GitHub/GitLab/Azure DevOps/Jenkins) crie a mudança automaticamente.',
+      'US-271': 'Como gestor, quero políticas que aprovem automaticamente mudanças de baixo risco (testes passaram, cobertura ok).',
+      'US-272': 'Como auditor, quero ver commits, builds e testes vinculados à mudança.',
+      'US-280': 'Como gestor, quero registrar iniciativas de melhoria com metas, KPIs e tarefas.',
+      'US-281': 'Como gestor, quero vincular a melhoria a problemas/KPIs e acompanhar o resultado.',
+      'US-290': 'Como gestor, quero cadastrar escalas, plantões e habilidades dos agentes.',
+      'US-291': 'Como sistema, quero atribuir chamados por habilidade, disponibilidade e carga.',
+      'US-292': 'Como gestor, quero painel de carga e produtividade da equipe.',
+      'US-293': 'Como gestor, quero escala de plantão com acionamento (on-call) para P1.',
+      'US-294': 'Como gestor, quero mineração de processos para ver gargalos e retrabalho.',
+      'US-310': 'Como usuário, quero abrir e acompanhar chamados e aprovar pedidos pelo celular.',
+      'US-311': 'Como agente, quero trabalhar minha fila pelo celular com notificações push.',
+      'US-312': 'Como técnico de campo, quero ler código de barras/QR do ativo.'
+    };
+
+    const EPIC_META = {
+      'E01 Plataforma Base': { pkg: 'Platform', rel: 'MVP' },
+      'E27 Admin & No-Code': { pkg: 'Platform', rel: 'MVP (parcial)' },
+      'E02 Gestão de Incidentes': { pkg: 'Standard', rel: 'MVP' },
+      'E03 Workspace do Agente': { pkg: 'Standard', rel: 'MVP (parcial)' },
+      'E04 SLA & Calendários': { pkg: 'Standard', rel: 'MVP' },
+      'E05 Notificações & E-mail': { pkg: 'Standard', rel: 'MVP' },
+      'E06 Portal Autoatendimento': { pkg: 'Standard', rel: 'MVP' },
+      'E07 Catálogo & Requisições': { pkg: 'Standard', rel: 'MVP (parcial)' },
+      'E08 Base de Conhecimento': { pkg: 'Standard', rel: 'MVP (parcial)' },
+      'E12 CMDB Mínima': { pkg: 'Standard', rel: 'MVP (mínimo)' },
+      'E13 Workflow No-Code': { pkg: 'Platform', rel: 'MVP (parcial)' },
+      'E14 Relatórios & Dashboards': { pkg: 'Standard', rel: 'MVP (parcial)' },
+      'E24 Pesquisas CSAT': { pkg: 'Standard', rel: 'MVP (simples)' },
+      'E26 API & Webhooks': { pkg: 'Platform', rel: 'MVP (API REST)' },
+      'E09 Gestão de Problemas': { pkg: 'Standard', rel: 'R2 / R3' },
+      'E10 Gestão de Mudanças': { pkg: 'Standard', rel: 'R2' },
+      'E11 Gestão de Releases': { pkg: 'Standard', rel: 'R2' },
+      'E15 Performance Analytics': { pkg: 'Pro', rel: 'R2 / R3' },
+      'E16 Incidentes Graves (MIM)': { pkg: 'Pro', rel: 'R3' },
+      'E17 Classificação/Roteamento ML': { pkg: 'Pro', rel: 'R3' },
+      'E18 IA Generativa': { pkg: 'Enterprise', rel: 'R3' },
+      'E19 Agente Virtual & Chat': { pkg: 'Pro', rel: 'R3' },
+      'E20 Walk-up / Balcão': { pkg: 'Pro', rel: 'R3' },
+      'E21 Integração DevOps': { pkg: 'Pro', rel: 'R3' },
+      'E22 Melhoria Contínua': { pkg: 'Pro', rel: 'R4' },
+      'E23 Força de Trabalho': { pkg: 'Enterprise', rel: 'R3 / R4' },
+      'E25 App Mobile': { pkg: 'Standard', rel: 'R3' }
+    };
+
+    const STORY_AC = {
+      'US-001': [
+        'Dado o primeiro acesso sem organização configurada, quando o admin preencher nome, domínio, fuso e logo, então o registro em organization_settings é criado e o wizard é bloqueado.',
+        'Alterações posteriores refletem imediatamente no cabeçalho do Portal e do Workspace.'
+      ],
+      'US-002': [
+        'Senhas são armazenadas com Argon2id; após 5 tentativas inválidas em 15 min, a conta sofre bloqueio temporário (HTTP 429).',
+        'Se mfa_enabled = true, o login exige código TOTP válido de 6 dígitos antes de emitir o JWT.'
+      ],
+      'US-003': [
+        'Administrador consegue cadastrar IdP (Client ID, Secret, Issuer/Metadata XML) e ativar login corporativo.',
+        'Usuário autenticado no IdP é logado automaticamente (ou criado no primeiro acesso via Just-In-Time provisioning).'
+      ],
+      'US-004': [
+        'Upload de CSV valida e-mails duplicados/inválidos e exibe relatório de linhas criadas, atualizadas e com erro.',
+        'Endpoints SCIM /scim/v2/Users permitem criar, atualizar e desativar usuários via token de integração.'
+      ],
+      'US-005': [
+        'Usuário com papel end_user recebe HTTP 403 ao acessar qualquer rota de /workspace ou /admin.',
+        'Permissões de múltiplos papéis são somadas; alterações de papel geram entrada imutável em audit_logs.'
+      ],
+      'US-006': [
+        'Toda criação, alteração ou exclusão em tasks, users, roles, slas e no-code grava actor_id, field_name, old_value, new_value e created_at em audit_logs.',
+        'Não existem endpoints de UPDATE ou DELETE para audit_logs.'
+      ],
+      'US-008': [
+        'Usuário pode alternar idioma (pt-BR / en / es) no perfil; textos, menus, estados e erros atualizam no idioma escolhido.'
+      ],
+      'US-330': ['CRUD completo de categorias/subcategorias em árvore, códigos de resolução e motivos de espera, com desativação sem quebrar histórico.'],
+      'US-331': ['CRUD de grupos, definição de gestor, e-mail do grupo e adição/remoção de membros.'],
+      'US-332': ['CRUD de localidades (com fuso horário) e departamentos (com gestor).'],
+      'US-333': [
+        'Admin cria novos campos (TEXT, NUMBER, SELECT, DATE, USER_REF, CI_REF, BOOLEAN) e reorganiza seções/colunas via drag-and-drop.',
+        'Campos criados aparecem no formulário, persistem em custom_fields e funcionam em filtros e relatórios.'
+      ],
+      'US-334': ['Admin cria regras no-code (ex.: Se Categoria == Hardware, tornar Patrimônio obrigatório e visível), aplicadas no frontend e validadas no backend.'],
+      'US-020': [
+        'Formulário permite solicitante, categoria/subcategoria, CI afetado, descrição rica e anexos (até 25 MB/arquivo).',
+        'Ao salvar, gera número sequencial único INC0000001+ com estado inicial NEW.'
+      ],
+      'US-021': [
+        'Matriz 3×3 configurável calcula priority (P1–P5) automaticamente no frontend e no backend.',
+        'Sobrescrita manual exige permissão específica e motivo obrigatório gravado em auditoria.'
+      ],
+      'US-022': [
+        'Transições válidas: NEW → IN_PROGRESS / ON_HOLD / RESOLVED / CANCELLED; ON_HOLD exige motivo e pausa SLA.',
+        'Estados finais (CLOSED, CANCELLED) bloqueiam edição operacional.'
+      ],
+      'US-023': [
+        'Ao atribuir a um usuário, valida se ele pertence ao grupo selecionado.',
+        'Reatribuir registra evento na linha do tempo e exige justificativa configurável.'
+      ],
+      'US-024': ['Regras ativas são avaliadas por priority_order na criação/atualização; a primeira que casar define grupo e responsável.'],
+      'US-025': [
+        'Nota de Trabalho (is_internal = true) aparece com destaque visual no Workspace e nunca é exposta ao Portal ou e-mail.',
+        'Comentário público (is_internal = false) aparece no Portal e notifica o solicitante.'
+      ],
+      'US-026': [
+        'Dentro de reopen_window_days, o usuário vê "Reabrir" no Portal; ao reabrir, volta para IN_PROGRESS e incrementa reopen_count.',
+        'Após o prazo, o botão não aparece e a API rejeita a reabertura.'
+      ],
+      'US-027': ['Job diário fecha incidentes em RESOLVED após auto_close_days, define closed_at e dispara pesquisa CSAT.'],
+      'US-028': ['API e UI impedem transição para RESOLVED sem resolution_code_id e resolution_notes preenchidos.'],
+      'US-029': [
+        'Agente vincula N incidentes a um Pai (vedado ciclos).',
+        'Resolver o Pai resolve todos os filhos abertos automaticamente herdando código/nota e notificando solicitantes.'
+      ],
+      'US-032': ['Worker verifica incidentes abertos que atingiram threshold_minutes e executa escalonamento (notificar gestor / reatribuir).'],
+      'US-033': ['Selecionar template pré-preenche categoria, impacto, urgência, grupo e descrições sem salvar até confirmação.'],
+      'US-040': ['Exibe 4 blocos em tempo real: Meu Trabalho, Fila do Meu Grupo, Não Atribuídos e medidor de Incident SLAs (< 1h para violar).'],
+      'US-041': ['Suporta filtros combinados (AND/OR), ordenação, colunas configuráveis e visões salvas ("Minhas views").'],
+      'US-042': ['Clicar em registros abre novas abas no Workspace sem perder estado não salvo de outras abas.'],
+      'US-043': ['Painel direito mostra dados do solicitante (departamento, local, VIP), últimos 5 chamados e resumo do CI afetado.'],
+      'US-044': ['Painel Investigation busca por similaridade textual (pg_trgm) os 5 artigos e 5 incidentes resolvidos mais parecidos.'],
+      'US-045': ['Linha do tempo cronológica exibe comentários, notas internas, e-mails, mudanças auditadas e eventos de SLA com filtro por tipo.'],
+      'US-046': ['Selecionar ≥ 2 registros habilita edição em lote de estado, prioridade, grupo ou responsável em transação única.'],
+      'US-047': ['Botões 1-clique (Atribuir a mim, Em espera, Resolver) e atalhos de teclado documentados (? abre guia).'],
+      'US-048': ['Via WebSocket, exibe presença de colegas no mesmo registro e atualiza a tela em tempo real sem F5.'],
+      'US-051': ['Barra global busca por número exato (INC..., REQ..., KB...) e texto em tarefas, usuários e CIs em < 500 ms.'],
+      'US-060': ['Admin cria SLAs RESPONSE ou RESOLUTION com tempo alvo e regras JSON de Início, Pausa, Parada e Reinício.'],
+      'US-061': ['Cálculo de target_end_at considera apenas minutos na janela comercial e pula feriados em calendar_holidays.'],
+      'US-062': ['Exibe barra/badge com tempo restante e % consumida: verde (<50%), amarelo (50–74%), laranja (75–99%), vermelho (>=100%).'],
+      'US-063': ['Worker dispara notificação exatamente uma vez por marco (notified_50, notified_75, notified_100).'],
+      'US-065': ['Relatório de % cumpridos vs. violados filtrável por período, grupo e prioridade com exportação.'],
+      'US-066': ['Mudar prioridade cancela SLA antigo e inicia o novo conforme configuração da definição.'],
+      'US-070': ['Usuário recebe e-mail formatado na abertura, comentário público, aprovação e resolução/fechamento.'],
+      'US-071': ['Worker IMAP/Graph lê caixa a cada ≤ 1 min e cria Incidente vinculando remetente e anexos.'],
+      'US-072': ['E-mail com número do chamado ou In-Reply-To adiciona corpo limpo como comentário público.'],
+      'US-073': ['Admin edita assunto e corpo HTML com variáveis ({{task.number}}, {{requester.name}}) e pré-visualiza com dados reais.'],
+      'US-075': ['Sininho no Workspace/Portal mostra badge de não lidas via WebSocket e navega direto ao registro.'],
+      'US-080': ['Home limpa com busca central, cartões rápidos e resumo de Meus chamados / Aprovações pendentes.'],
+      'US-081': ['Ao digitar título do incidente, até 5 artigos relevantes aparecem ao lado com opção "Isso resolveu meu problema".'],
+      'US-082': ['Usuário vê apenas seus chamados, acompanha linha do tempo pública, comenta e envia anexos.'],
+      'US-083': ['Aba de aprovações pendentes permite aprovar ou rejeitar (exigindo motivo) com atualização imediata.'],
+      'US-084': ['Portal aplica logo, título e cor primária de organization_settings sem deploy.'],
+      'US-090': ['Admin cria itens vinculados a categorias com descrição, imagem, custo, prazo e workflow.'],
+      'US-091': ['Construtor de perguntas (text, select, date, user_ref, ci_ref, file) com regras condicionais validadas no Portal.'],
+      'US-092': ['Carrinho permite múltiplos itens e definir "Para quem é o pedido", gerando uma única REQ.'],
+      'US-093': ['Checkout cria 1 REQ, 1 RITM por item e dispara workflow gerando SCTASKs; fechar todas fecha RITM e REQ.'],
+      'US-094': ['E-mail de aprovação tem links assinados com token único ("Aprovar" / "Rejeitar") com validação de expiração.'],
+      'US-100': ['Editor rico suporta títulos, listas, tabelas, blocos de código e upload de imagens.'],
+      'US-101': ['Artigo segue DRAFT → IN_REVIEW → PUBLISHED → RETIRED; apenas PUBLISHED aparece no Portal.'],
+      'US-102': ['Múltiplas bases (TI, RH, Interna) com permissões granulares de leitura e escrita por papel.'],
+      'US-103': ['Busca PostgreSQL Full-Text + pg_trgm tolerante a acentuação e erros de digitação.'],
+      'US-104': ['Usuário vota Útil / Não útil (1 voto editável por usuário/artigo) e deixa comentário de melhoria.'],
+      'US-105': ['Botão "Gerar Artigo de Conhecimento" em incidente resolvido abre rascunho pré-preenchido (Issue / Resolution).'],
+      'US-106': ['Grava resolved_by_kb_id no incidente para contabilizar quantos incidentes cada artigo resolveu.'],
+      'US-170': ['Admin gerencia CIs com atributos específicos por classe (Servidor, Notebook, App, Rede, Banco).'],
+      'US-171': ['Importação CSV valida classe e chave única (name ou serial_number) criando/atualizando em lote com relatório de erros.'],
+      'US-190': ['Editor visual com nós (Gatilho, Condição, Aprovação, Tarefa, Notificação, Espera, Atualizar) executado via BullMQ.'],
+      'US-191': ['Admin cria regras WHEN [entidade + evento] IF [condições] THEN [ações] sem código.'],
+      'US-200': ['Dashboard padrão com abertos por estado, prioridade, grupo, backlog 30 dias e % de SLA cumprido.'],
+      'US-201': ['Gestor escolhe entidade, filtros, agrupamento e tipo de gráfico (Lista, Barra, Pizza, Linha, Indicador).'],
+      'US-203': ['Qualquer lista ou relatório pode ser exportado para CSV/Excel/PDF respeitando filtros e permissões.'],
+      'US-300': ['Ao fechar chamado, usuário avalia de 1 a 5 estrelas + comentário opcional (1 resposta por chamado).'],
+      'US-301': ['Gestor visualiza média geral, distribuição de notas e média por grupo/agente no período.'],
+      'US-320': ['Documentação interativa Swagger/OpenAPI acessível; Admin gera/revoga tokens com escopos armazenados como hash.'],
+      'US-321': ['Admin cadastra URL e eventos; sistema envia POST assinado HMAC-SHA256 com até 3 retentativas com backoff.']
+    };
+
+    const STORY_EVIDENCE = {
+      'US-001': 'Implementado: OrganizationModule (GET/POST setup/PATCH), schema Prisma, Zod @itsm/shared e página /setup. 4/4 testes unitários passando.',
+      'US-002': 'Implementado: AuthModule (Argon2id, JWT access/refresh, bloqueio HTTP 429 após 5 falhas, MFA TOTP otplib v13) e página /login.',
+      'US-003': 'Implementado: SsoService/SsoController (/auth/sso/* OIDC/SAML, JIT provisioning), UI /workspace/settings/sso e botão SSO em /login. 4/4 testes unitários passando.',
+      'US-004': 'Implementado: UsersModule (POST /users/import/csv com dryRun + SCIM 2.0 /scim/v2/Users com ScimTokenGuard) e UI /workspace/users/import. 4/4 testes unitários passando.',
+      'US-005': 'Implementado: JwtAuthGuard, RolesGuard, @Roles(), @CurrentUser(), PUT /auth/users/:id/roles e rotas /workspace e /portal.',
+      'US-006': 'Implementado: AuditModule (GET /audit-logs e GET /audit-logs/entity/:entityType/:entityId, somente leitura) + UI /workspace/audit. 3/3 testes unitários passando.',
+      'US-008': 'Implementado: Dicionário i18n (pt-BR, en, es) em @itsm/shared, PATCH /auth/me/locale com auditoria e LocaleProvider/LocaleSwitcher no frontend.',
+      'US-320': 'Parcial: Swagger/OpenAPI configurado na API NestJS (@nestjs/swagger); pendente gestão de API tokens por aplicação.'
+    };
+
+    const modalEl = document.getElementById('jira-modal');
+    const modalCrumb = document.getElementById('modal-breadcrumb');
+    const modalMain = document.getElementById('modal-main');
+    const modalSide = document.getElementById('modal-side');
+
+    function closeModal() { modalEl.classList.remove('open'); }
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+    modalEl.addEventListener('click', (e) => { if (e.target === modalEl) closeModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+    function openEpicModal(epicName) {
+      const meta = EPIC_META[epicName] || { pkg: '—', rel: '—' };
+      const mvpChildren = STORIES.filter(s => s.epic === epicName);
+      const postChildren = POST_MVP_STORIES.filter(s => s.epic === epicName);
+      const children = mvpChildren.length ? mvpChildren : postChildren;
+      const isMvp = mvpChildren.length > 0;
+      const doneCount = mvpChildren.filter(s => s.status === 'done').length;
+      const pct = isMvp && children.length ? Math.round((doneCount / children.length) * 100) : 0;
+
+      modalCrumb.innerHTML = `<span>Projeto ITSM</span> <span>/</span> <strong>🟣 Épico: ${epicName}</strong>`;
+      modalMain.innerHTML = `
+        <div class="modal-title">${epicName}</div>
+        <div>
+          <div class="modal-section-label">Objetivo do Épico</div>
+          <div class="story-box">${EPIC_GOALS[epicName] || 'Sem descrição cadastrada.'}</div>
+        </div>
+        <div>
+          <div class="modal-section-label">Histórias Filhas (${children.length}) — clique para abrir</div>
+          <div class="child-list">
+            ${children.map(c => {
+              const badge = isMvp ? STATUS_LABEL[c.status] : { text: c.rel + ' · Planejado', cls: 'st-pending' };
+              return `<div class="child-item" data-story-id="${c.id}">
+                <span><strong>${c.id}</strong> — ${c.title}</span>
+                <span class="status-pill ${badge.cls}">${badge.text}</span>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      `;
+      modalSide.innerHTML = `
+        <div class="meta-row"><span class="meta-key">Tipo</span><span class="meta-val">🟣 Épico</span></div>
+        <div class="meta-row"><span class="meta-key">Pacote</span><span class="meta-val">${meta.pkg}</span></div>
+        <div class="meta-row"><span class="meta-key">Release</span><span class="meta-val">${meta.rel}</span></div>
+        <div class="meta-row"><span class="meta-key">Histórias</span><span class="meta-val">${children.length}</span></div>
+        ${isMvp ? `
+          <div>
+            <div class="meta-row" style="border-bottom:none;padding-bottom:4px;"><span class="meta-key">Progresso MVP</span><span class="meta-val">${pct}% (${doneCount}/${children.length})</span></div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+          </div>
+        ` : ''}
+      `;
+      modalMain.querySelectorAll('[data-story-id]').forEach(el => {
+        el.addEventListener('click', () => openStoryModal(el.getAttribute('data-story-id')));
+      });
+      modalEl.classList.add('open');
+    }
+
+    function openStoryModal(storyId) {
+      const mvp = STORIES.find(s => s.id === storyId);
+      const post = POST_MVP_STORIES.find(s => s.id === storyId);
+      const s = mvp || post;
+      if (!s) return;
+
+      const isMvp = Boolean(mvp);
+      const badge = isMvp ? STATUS_LABEL[s.status] : { text: 'Planejado', cls: 'st-pending' };
+      const goalText = STORY_GOALS[s.id] || s.title;
+      const acList = STORY_AC[s.id] || [
+        'Critérios detalhados serão refinados na especificação funcional da release ' + (s.rel || 'futura') + '.',
+        'História mapeada em Plan/plano_itsm.md.'
+      ];
+      const checkIcon = isMvp && s.status === 'done' ? '✅' : '☐';
+
+      modalCrumb.innerHTML = `<span>Projeto ITSM</span> <span>/</span> <a class="crumb-link" id="crumb-epic">${s.epic}</a> <span>/</span> <strong>${s.id}</strong>`;
+      modalMain.innerHTML = `
+        <div class="modal-title">${s.id} — ${s.title}</div>
+        <div>
+          <div class="modal-section-label">Descrição (User Story)</div>
+          <div class="story-box">${goalText}</div>
+        </div>
+        <div>
+          <div class="modal-section-label">Critérios de Aceite (${acList.length})</div>
+          <ul class="ac-list">
+            ${acList.map(ac => `<li class="ac-item"><span class="ac-icon">${checkIcon}</span><span>${ac}</span></li>`).join('')}
+          </ul>
+        </div>
+        ${STORY_EVIDENCE[s.id] ? `
+          <div>
+            <div class="modal-section-label">Evidências & Implementação</div>
+            <div class="story-box">${STORY_EVIDENCE[s.id]}</div>
+          </div>
+        ` : ''}
+      `;
+      modalSide.innerHTML = `
+        <div class="meta-row"><span class="meta-key">Tipo</span><span class="meta-val">🟢 História</span></div>
+        <div class="meta-row"><span class="meta-key">Status</span><span class="meta-val"><span class="status-pill ${badge.cls}">${badge.text}</span></span></div>
+        <div class="meta-row"><span class="meta-key">Épico Pai</span><span class="meta-val"><a class="crumb-link" id="side-epic">${s.epic}</a></span></div>
+        <div class="meta-row"><span class="meta-key">${isMvp ? 'Cronograma MVP' : 'Release Alvo'}</span><span class="meta-val">${isMvp ? (s.start === s.end ? 'Semana ' + s.start : 'Semanas ' + s.start + '–' + s.end) : s.rel}</span></div>
+      `;
+      document.getElementById('crumb-epic').addEventListener('click', () => openEpicModal(s.epic));
+      document.getElementById('side-epic').addEventListener('click', () => openEpicModal(s.epic));
+      modalEl.classList.add('open');
+    }
+
+    function renderGantt() {
+      const epicFilter = document.getElementById('filter-epic').value;
+      const statusFilter = document.getElementById('filter-status').value;
+      const q = document.getElementById('filter-search').value.trim().toLowerCase();
+
+      const filtered = STORIES.filter(s => {
+        if (epicFilter !== 'ALL' && s.epic !== epicFilter) return false;
+        if (statusFilter !== 'ALL' && s.status !== statusFilter) return false;
+        if (q && !s.id.toLowerCase().includes(q) && !s.title.toLowerCase().includes(q)) return false;
+        return true;
+      });
+
+      const tbody = document.getElementById('gantt-body');
+      tbody.innerHTML = '';
+      let currentEpic = '';
+      const totalCols = 3 + TOTAL_WEEKS;
+
+      filtered.forEach(s => {
+        if (s.epic !== currentEpic) {
+          currentEpic = s.epic;
+          const er = document.createElement('tr');
+          er.className = 'epic-row';
+          er.dataset.epic = currentEpic;
+          er.innerHTML = `<td colspan="${totalCols}">🟣 ${currentEpic} <span class="row-hint">(clique para detalhes do épico)</span></td>`;
+          tbody.appendChild(er);
+        }
+
+        const st = STATUS_LABEL[s.status];
+        const tr = document.createElement('tr');
+        tr.className = 'story-row';
+        tr.dataset.story = s.id;
+        let cells = `
+          <td><strong>${s.id}</strong></td>
+          <td>${s.title}</td>
+          <td><span class="status-pill ${st.cls}">${st.text}</span></td>
+        `;
+
+        for (let w = 1; w <= TOTAL_WEEKS; w++) {
+          if (w === s.start) {
+            const span = s.end - s.start + 1;
+            cells += `<td class="gantt-bar-cell" colspan="${span}"><div class="gantt-bar ${st.bar}" title="${s.id}: Sem ${s.start}–${s.end}">S${s.start}${span > 1 ? `–S${s.end}` : ''}</div></td>`;
+            w = s.end;
+          } else {
+            cells += `<td class="week-col"></td>`;
+          }
+        }
+        tr.innerHTML = cells;
+        tbody.appendChild(tr);
+      });
+    }
+
+    const POST_MVP_STORIES = [
+      // E09 Gestão de Problemas
+      { id: 'US-120', epic: 'E09 Gestão de Problemas', title: 'Registrar problema e vincular vários incidentes', rel: 'R2' },
+      { id: 'US-121', epic: 'E09 Gestão de Problemas', title: 'Ciclo de vida (Novo → Avaliação → Causa raiz → Correção → Resolvido → Fechado)', rel: 'R2' },
+      { id: 'US-122', epic: 'E09 Gestão de Problemas', title: 'Registrar causa raiz (5 porquês, Ishikawa) e solução de contorno', rel: 'R2' },
+      { id: 'US-123', epic: 'E09 Gestão de Problemas', title: 'Publicar Erro Conhecido com solução de contorno visível aos agentes', rel: 'R2' },
+      { id: 'US-124', epic: 'E09 Gestão de Problemas', title: 'Resolver incidentes vinculados quando o problema for resolvido', rel: 'R2' },
+      { id: 'US-125', epic: 'E09 Gestão de Problemas', title: 'Tarefas de problema para outros grupos', rel: 'R2' },
+      { id: 'US-126', epic: 'E09 Gestão de Problemas', title: 'Sugerir incidentes recorrentes como candidatos a problema', rel: 'R3' },
+
+      // E10 Gestão de Mudanças
+      { id: 'US-140', epic: 'E10 Gestão de Mudanças', title: 'Criar mudanças Padrão, Normal e Emergencial', rel: 'R2' },
+      { id: 'US-141', epic: 'E10 Gestão de Mudanças', title: 'Informar justificativa, implementação, rollback, teste, janela e CIs', rel: 'R2' },
+      { id: 'US-142', epic: 'E10 Gestão de Mudanças', title: 'Calcular risco por questionário + histórico de falhas do CI', rel: 'R2' },
+      { id: 'US-143', epic: 'E10 Gestão de Mudanças', title: 'Aprovações por etapa (técnica, CAB, negócio) por tipo e risco', rel: 'R2' },
+      { id: 'US-144', epic: 'E10 Gestão de Mudanças', title: 'Calendário de mudanças com janelas de manutenção e congelamento', rel: 'R2' },
+      { id: 'US-145', epic: 'E10 Gestão de Mudanças', title: 'Detectar conflitos (mesmo CI, mesmo horário, fora da janela)', rel: 'R2' },
+      { id: 'US-146', epic: 'E10 Gestão de Mudanças', title: 'Agenda de reunião do CAB e registro das decisões', rel: 'R2' },
+      { id: 'US-147', epic: 'E10 Gestão de Mudanças', title: 'Tarefas de mudança e registro do resultado (sucesso, falha, rollback)', rel: 'R2' },
+      { id: 'US-148', epic: 'E10 Gestão de Mudanças', title: 'Revisão pós-implementação (PIR) para mudanças com falha', rel: 'R2' },
+      { id: 'US-149', epic: 'E10 Gestão de Mudanças', title: 'Catálogo de mudanças padrão', rel: 'R2' },
+      { id: 'US-150', epic: 'E10 Gestão de Mudanças', title: 'Visualizar impacto da mudança nos serviços via CMDB', rel: 'R2' },
+
+      // E11 Gestão de Releases
+      { id: 'US-160', epic: 'E11 Gestão de Releases', title: 'Agrupar mudanças em uma release com fases e datas', rel: 'R2' },
+      { id: 'US-161', epic: 'E11 Gestão de Releases', title: 'Tarefas de release e checklist de go/no-go', rel: 'R2' },
+      { id: 'US-162', epic: 'E11 Gestão de Releases', title: 'Acompanhar status da release em painel', rel: 'R2' },
+
+      // E15 Performance Analytics
+      { id: 'US-210', epic: 'E15 Performance Analytics', title: 'KPIs com histórico diário (MTTR, FCR, backlog, reabertura, % SLA)', rel: 'R2' },
+      { id: 'US-211', epic: 'E15 Performance Analytics', title: 'Metas e limites com alertas', rel: 'R2' },
+      { id: 'US-212', epic: 'E15 Performance Analytics', title: 'Detalhamento (drill-down) por grupo, categoria e agente', rel: 'R2' },
+      { id: 'US-213', epic: 'E15 Performance Analytics', title: 'Previsão de volume de chamados', rel: 'R3' },
+
+      // E16 Incidentes Graves (MIM)
+      { id: 'US-220', epic: 'E16 Incidentes Graves (MIM)', title: 'Propor incidente como grave com aceite/rejeição do gestor', rel: 'R3' },
+      { id: 'US-221', epic: 'E16 Incidentes Graves (MIM)', title: 'Workspace de crise (linha do tempo, tarefas, participantes, serviços)', rel: 'R3' },
+      { id: 'US-222', epic: 'E16 Incidentes Graves (MIM)', title: 'Criar sala de guerra no Teams/Slack automaticamente', rel: 'R3' },
+      { id: 'US-223', epic: 'E16 Incidentes Graves (MIM)', title: 'Enviar comunicados a partes interessadas (e-mail, SMS)', rel: 'R3' },
+      { id: 'US-224', epic: 'E16 Incidentes Graves (MIM)', title: 'Gerar relatório pós-incidente (PIR) com linha do tempo automática', rel: 'R3' },
+      { id: 'US-225', epic: 'E16 Incidentes Graves (MIM)', title: 'Sugerir incidente grave ao detectar pico de chamados semelhantes', rel: 'R3' },
+
+      // E17 Classificação/Roteamento com ML
+      { id: 'US-230', epic: 'E17 Classificação/Roteamento ML', title: 'Prever categoria, prioridade e grupo a partir do texto do chamado', rel: 'R3' },
+      { id: 'US-231', epic: 'E17 Classificação/Roteamento ML', title: 'Treinar e reavaliar modelo com histórico do tenant e precisão', rel: 'R3' },
+      { id: 'US-232', epic: 'E17 Classificação/Roteamento ML', title: 'Definir limiar de confiança para aplicar ou apenas sugerir', rel: 'R3' },
+      { id: 'US-233', epic: 'E17 Classificação/Roteamento ML', title: 'Aceitar ou corrigir sugestão alimentando o modelo', rel: 'R3' },
+      { id: 'US-234', epic: 'E17 Classificação/Roteamento ML', title: 'Agrupar incidentes semelhantes (clustering) para apoiar Problemas', rel: 'R3' },
+
+      // E18 Assistente de IA Generativa
+      { id: 'US-240', epic: 'E18 IA Generativa', title: 'Resumo do incidente com um clique (histórico, ações, situação)', rel: 'R3' },
+      { id: 'US-241', epic: 'E18 IA Generativa', title: 'Rascunhar nota de resolução ao resolver incidente', rel: 'R3' },
+      { id: 'US-242', epic: 'E18 IA Generativa', title: 'Rascunhar artigo da KB a partir do incidente resolvido', rel: 'R3' },
+      { id: 'US-243', epic: 'E18 IA Generativa', title: 'Sugestões de resposta ao usuário no tom adequado', rel: 'R3' },
+      { id: 'US-244', epic: 'E18 IA Generativa', title: 'Busca no portal com resposta gerada via RAG e fontes', rel: 'R3' },
+      { id: 'US-245', epic: 'E18 IA Generativa', title: 'Resumo de risco e histórico da mudança', rel: 'R3' },
+      { id: 'US-246', epic: 'E18 IA Generativa', title: 'Ligar/desligar recursos de IA e registrar uso/custo sem treinar terceiros', rel: 'R3' },
+
+      // E19 Agente Virtual e Chat
+      { id: 'US-250', epic: 'E19 Agente Virtual & Chat', title: 'Conversar com chatbot no portal e no Teams/Slack', rel: 'R3' },
+      { id: 'US-251', epic: 'E19 Agente Virtual & Chat', title: 'Editor visual de fluxos de conversa (senha, status, pedidos)', rel: 'R3' },
+      { id: 'US-252', epic: 'E19 Agente Virtual & Chat', title: 'Entendimento de intenção em linguagem natural (NLU)', rel: 'R3' },
+      { id: 'US-253', epic: 'E19 Agente Virtual & Chat', title: 'Transbordo para agente humano com contexto da conversa', rel: 'R3' },
+      { id: 'US-254', epic: 'E19 Agente Virtual & Chat', title: 'Atendimento de chats ao vivo no workspace com fila e limite', rel: 'R3' },
+
+      // E20 Walk-up / Balcão
+      { id: 'US-260', epic: 'E20 Walk-up / Balcão', title: 'Check-in online ou no totem com posição na fila', rel: 'R3' },
+      { id: 'US-261', epic: 'E20 Walk-up / Balcão', title: 'Agendar horário no balcão de TI', rel: 'R3' },
+      { id: 'US-262', epic: 'E20 Walk-up / Balcão', title: 'Fila do balcão e registro vinculado a incidente/ativo', rel: 'R3' },
+
+      // E21 Integração DevOps
+      { id: 'US-270', epic: 'E21 Integração DevOps', title: 'Pipeline (GitHub/GitLab/Azure/Jenkins) cria mudança automaticamente', rel: 'R3' },
+      { id: 'US-271', epic: 'E21 Integração DevOps', title: 'Políticas de aprovação automática para mudanças de baixo risco', rel: 'R3' },
+      { id: 'US-272', epic: 'E21 Integração DevOps', title: 'Visualizar commits, builds e testes vinculados à mudança', rel: 'R3' },
+
+      // E22 Melhoria Contínua (CIM)
+      { id: 'US-280', epic: 'E22 Melhoria Contínua', title: 'Registrar iniciativas de melhoria com metas, KPIs e tarefas', rel: 'R4' },
+      { id: 'US-281', epic: 'E22 Melhoria Contínua', title: 'Vincular melhoria a problemas/KPIs e acompanhar resultado', rel: 'R4' },
+
+      // E23 Força de Trabalho
+      { id: 'US-290', epic: 'E23 Força de Trabalho', title: 'Cadastrar escalas, plantões e habilidades dos agentes', rel: 'R4' },
+      { id: 'US-291', epic: 'E23 Força de Trabalho', title: 'Atribuir chamados por habilidade, disponibilidade e carga', rel: 'R4' },
+      { id: 'US-292', epic: 'E23 Força de Trabalho', title: 'Painel de carga e produtividade da equipe', rel: 'R4' },
+      { id: 'US-293', epic: 'E23 Força de Trabalho', title: 'Escala de plantão com acionamento (on-call) para P1', rel: 'R3' },
+      { id: 'US-294', epic: 'E23 Força de Trabalho', title: 'Mineração de processos para identificar gargalos e retrabalho', rel: 'R4' },
+
+      // E25 App Mobile
+      { id: 'US-310', epic: 'E25 App Mobile', title: 'Abrir, acompanhar chamados e aprovar pedidos pelo celular', rel: 'R3' },
+      { id: 'US-311', epic: 'E25 App Mobile', title: 'Trabalhar fila pelo celular com notificações push', rel: 'R3' },
+      { id: 'US-312', epic: 'E25 App Mobile', title: 'Ler código de barras/QR do ativo pelo celular', rel: 'R3' }
+    ];
+
+    function initPostMvpFilters() {
+      const epics = [...new Set(POST_MVP_STORIES.map(s => s.epic))];
+      const sel = document.getElementById('post-filter-epic');
+      epics.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e;
+        opt.textContent = e;
+        sel.appendChild(opt);
+      });
+    }
+
+    function renderPostMvp() {
+      const epicFilter = document.getElementById('post-filter-epic').value;
+      const relFilter = document.getElementById('post-filter-release').value;
+      const q = document.getElementById('post-filter-search').value.trim().toLowerCase();
+
+      const filtered = POST_MVP_STORIES.filter(s => {
+        if (epicFilter !== 'ALL' && s.epic !== epicFilter) return false;
+        if (relFilter !== 'ALL' && s.rel !== relFilter) return false;
+        if (q && !s.id.toLowerCase().includes(q) && !s.title.toLowerCase().includes(q)) return false;
+        return true;
+      });
+
+      const tbody = document.getElementById('post-mvp-body');
+      tbody.innerHTML = '';
+      let currentEpic = '';
+
+      filtered.forEach(s => {
+        if (s.epic !== currentEpic) {
+          currentEpic = s.epic;
+          const er = document.createElement('tr');
+          er.className = 'epic-row';
+          er.dataset.epic = currentEpic;
+          er.innerHTML = `<td colspan="4">🟣 ${currentEpic} <span class="row-hint">(clique para detalhes do épico)</span></td>`;
+          tbody.appendChild(er);
+        }
+        const tr = document.createElement('tr');
+        tr.className = 'story-row';
+        tr.dataset.story = s.id;
+        tr.innerHTML = `
+          <td><strong>${s.id}</strong></td>
+          <td>${s.title}</td>
+          <td><span class="status-pill st-progress">${s.rel}</span></td>
+          <td><span class="status-pill st-pending">Planejado</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function attachModalTriggers(tbodyId) {
+      document.getElementById(tbodyId).addEventListener('click', (e) => {
+        const epicRow = e.target.closest('tr.epic-row');
+        if (epicRow) { openEpicModal(epicRow.dataset.epic); return; }
+        const storyRow = e.target.closest('tr.story-row');
+        if (storyRow) { openStoryModal(storyRow.dataset.story); }
+      });
+    }
+
+    renderKPIs();
+    renderPhases();
+    initHeaderWeeks();
+    renderGantt();
+    initPostMvpFilters();
+    renderPostMvp();
+    attachModalTriggers('gantt-body');
+    attachModalTriggers('post-mvp-body');
+
+    document.getElementById('post-filter-epic').addEventListener('change', renderPostMvp);
+    document.getElementById('post-filter-release').addEventListener('change', renderPostMvp);
+    document.getElementById('post-filter-search').addEventListener('input', renderPostMvp);
+
+    document.getElementById('filter-epic').addEventListener('change', renderGantt);
+    document.getElementById('filter-status').addEventListener('change', renderGantt);
+    document.getElementById('filter-search').addEventListener('input', renderGantt);
+
+    const themeBtn = document.getElementById('theme-toggle');
+    function applyTheme(theme) {
+      if (theme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        themeBtn.textContent = '🌙 Dark Mode';
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        themeBtn.textContent = '☀️ Light Mode';
+      }
+    }
+    const savedTheme = localStorage.getItem('itsm-status-theme') || 'dark';
+    applyTheme(savedTheme);
+    themeBtn.addEventListener('click', () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      localStorage.setItem('itsm-status-theme', next);
+      applyTheme(next);
+    });
+  </script>
+</body>
+</html>
