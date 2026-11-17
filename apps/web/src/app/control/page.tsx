@@ -6,7 +6,7 @@ import Link from 'next/link';
 const PANELS = [
   { id: 'status.html', label: 'Status & Gantt (Jira)' },
   { id: 'banco.html', label: 'Banco de Dados (DER)' },
-  { id: 'mapping.html', label: 'Mapa de Governança (n8n)' },
+  { id: 'mapping.html', label: 'Mapa de Governança' },
 ] as const;
 
 type PanelId = (typeof PANELS)[number]['id'];

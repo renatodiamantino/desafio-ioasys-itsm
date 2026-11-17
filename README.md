@@ -33,7 +33,7 @@ A plataforma centraliza todas as solicitações e falhas de TI em um único luga
 ### Central Control (`/control`) — DER PostgreSQL (Visual Paradigm)
 ![DER PostgreSQL](docs/screenshots/control-banco.png)
 
-### Central Control (`/control`) — Mapa de Governança (n8n)
+### Central Control (`/control`) — Mapa de Governança (Fluxo Interativo)
 ![Mapa de Governança](docs/screenshots/control-mapping.png)
 
 ---
@@ -64,7 +64,7 @@ servicenow/
 ├── Control/               # Painéis Visuais Vivos (também acessíveis em /control)
 │   ├── status.html                # Painel estilo Jira/Scrum + Gantt das 71 US + Pós-MVP
 │   ├── banco.html                 # DER PostgreSQL interativo estilo Visual Paradigm
-│   └── mapping.html               # Mapa animado estilo n8n (Rules → IA → QA Gate → Docs)
+│   └── mapping.html               # Mapa de fluxo animado (Rules → IA → QA Gate → Docs)
 ├── Soul/                  # Governança & Memória Contínua do Agente
 │   ├── AGENTS.md                  # Regras obrigatórias (herança TASK, BigInt, UI/UX, QA Gate)
 │   ├── skills.md                  # Persona Full-Stack + UI/UX Sênior + Definition of Done
@@ -97,7 +97,7 @@ Os arquivos em `Control/` podem ser abertos diretamente no navegador ou via **`h
   - Modal interativo estilo **Jira/Scrum** ao clicar em qualquer Épico ou História (`US-xxx`), exibindo objetivo, filhos, critérios de aceite e evidências.
 - **`Control/banco.html` (DER PostgreSQL — Estilo Visual Paradigm):**
   - Diagrama interativo das **13 tabelas** implementadas em `apps/api/prisma/schema.prisma`, com `PK`, `FK`, `UK`, tipos PostgreSQL, cardinalidades (`1:1`, `N:1`), arraste de entidades, zoom/pan e inspetor de vínculos.
-- **`Control/mapping.html` (Mapa de Governança — Estilo n8n):**
+- **`Control/mapping.html` (Mapa de Governança — Fluxo Interativo):**
   - Fluxo visual animado com bolinhas direcionais mostrando `INPUT` e `OUTPUT` entre `Pedido do Usuário`, `Rules Always-On`, `Agente IA`, `QA Gate`, loop de correção e atualização da documentação viva.
 
 ---

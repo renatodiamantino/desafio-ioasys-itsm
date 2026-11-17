@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mapping — Fluxo Interativo de Governança & IA (Estilo n8n)</title>
+  <title>Mapping — Fluxo Interativo de Governança & IA</title>
   <style>
     :root {
       --bg: #111318;
@@ -132,7 +132,7 @@
       50% { r: 6; opacity: 0.45; }
     }
 
-    /* n8n-style Nodes */
+    /* Interactive Workflow Nodes */
     .node {
       position: absolute;
       z-index: 5;
@@ -357,7 +357,7 @@
         desc: 'Persiste contagem de testes, armadilhas resolvidas e o próximo passo exato.'
       },
 
-      // Bottom Context Nodes feeding Agent Core (like n8n Tools & Memory)
+      // Bottom Context Nodes feeding Agent Core (Rules, Memory, Skills & Plan)
       {
         id: 'ctx_agents', shape: 'circle', icon: '📜', title: 'Soul/AGENTS.md', sub: 'Input: Regras',
         x: 340, y: 360, topPort: true,
